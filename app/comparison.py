@@ -12,6 +12,7 @@ from openpyxl.styles import PatternFill
 class ComparisonResult:
     sheets: dict[str, pd.DataFrame]
     summary: dict[str, Any]
+    summary_rows: list[dict[str, Any]]
     highlighted_cells: dict[str, set[tuple[int, int]]]
 
 
@@ -21,6 +22,7 @@ def compare_dataframes(
     key_columns: list[str],
     column_aliases: dict[str, str] | None = None,
     header_aliases: dict[str, list[str]] | None = None,
+    summary_subject: str = "Records",
 ) -> ComparisonResult:
     """Compare uploaded Excel data to a DB extract using Excel columns as contract."""
     aliases = column_aliases or {}
@@ -75,18 +77,17 @@ def compare_dataframes(
         "db_rows": len(db_df),
         "compared_columns": len(compare_columns),
         "matched_rows": len(matched_keys),
-        "mismatched_mattercodes": mismatched_records[key_columns].drop_duplicates().shape[0]
+        "mismatched_records": mismatched_records[key_columns].drop_duplicates().shape[0]
         if not mismatched_records.empty
         else 0,
-        "extra_mattercodes_in_database": len(extra_in_database),
-        "extra_mattercodes_in_excel": len(extra_in_excel),
+        "extra_records_in_database": len(extra_in_database),
+        "extra_records_in_excel": len(extra_in_excel),
         "duplicate_excel_rows": int(excel_dup_mask.sum()),
         "duplicate_db_rows": int(db_dup_mask.sum()),
         "missing_db_columns": len(missing_db_columns),
     }
-    summary_sheet = pd.DataFrame(
-        [{"Metric": _label(key), "Value": value} for key, value in summary.items()]
-    )
+    summary_rows = _summary_rows(summary, summary_subject)
+    summary_sheet = pd.DataFrame(summary_rows, columns=["Metric", "Value"])
     column_mapping_sheet = _column_mapping_sheet(
         excel_columns,
         original_db_columns,
@@ -103,6 +104,7 @@ def compare_dataframes(
             "Extra_In_Excel": extra_in_excel,
         },
         summary=summary,
+        summary_rows=summary_rows,
         highlighted_cells={"Mismatched_Records": highlighted_cells},
     )
 
@@ -299,3 +301,23 @@ def _rows_by_key(df: pd.DataFrame, key_columns: list[str]) -> dict[tuple[Any, ..
 
 def _label(value: str) -> str:
     return value.replace("_", " ").title()
+
+
+def _summary_rows(summary: dict[str, Any], subject: str) -> list[dict[str, Any]]:
+    subject = subject.strip() or "Records"
+    metric_labels = {
+        "excel_rows": f"{subject} In Excel",
+        "db_rows": f"{subject} In Database",
+        "compared_columns": "Compared Columns",
+        "matched_rows": f"Matched {subject}",
+        "mismatched_records": f"Mismatched {subject}",
+        "extra_records_in_database": f"Extra {subject} In Database",
+        "extra_records_in_excel": f"Extra {subject} In Excel",
+        "duplicate_excel_rows": f"Duplicate {subject} In Excel",
+        "duplicate_db_rows": f"Duplicate {subject} In Database",
+        "missing_db_columns": "Missing DB Columns",
+    }
+    return [
+        {"Metric": metric_labels.get(key, _label(key)), "Value": value}
+        for key, value in summary.items()
+    ]

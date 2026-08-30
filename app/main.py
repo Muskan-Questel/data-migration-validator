@@ -92,6 +92,7 @@ async def validate(
             key_columns=module.key_columns,
             column_aliases=module.column_aliases,
             header_aliases=module.header_aliases,
+            summary_subject=module.summary_subject,
         )
         report_path = run_dir / f"{output_name_prefix}_comparison_report.xlsx"
         write_report(comparison, str(report_path))
@@ -114,6 +115,7 @@ async def validate(
                 "run_id": run_id,
                 "region_name": region.name,
                 "summary": comparison.summary,
+                "summary_rows": comparison.summary_rows,
                 "db_export_name": db_export.name,
                 "report_name": report_path.name,
             },

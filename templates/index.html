@@ -221,8 +221,8 @@
             <tr><th>Metric</th><th>Value</th></tr>
           </thead>
           <tbody>
-            {% for key, value in result.summary.items() %}
-              <tr><td>{{ key.replace('_', ' ').title() }}</td><td>{{ value }}</td></tr>
+            {% for row in result.summary_rows %}
+              <tr><td>{{ row.Metric }}</td><td>{{ row.Value }}</td></tr>
             {% endfor %}
           </tbody>
         </table>

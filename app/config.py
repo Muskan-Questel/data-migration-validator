@@ -11,6 +11,7 @@ import yaml
 class ModuleConfig:
     identifier: str
     name: str
+    summary_subject: str
     query_template: str
     key_columns: list[str]
     column_aliases: dict[str, str]
@@ -70,6 +71,7 @@ def _module_from_payload(identifier: str, payload: dict[str, Any]) -> ModuleConf
     return ModuleConfig(
         identifier=identifier,
         name=payload["name"],
+        summary_subject=payload.get("summary_subject") or _default_summary_subject(payload["name"]),
         query_template=payload["query_template"],
         key_columns=list(payload["key_columns"]),
         column_aliases=dict(payload.get("column_aliases") or {}),
@@ -88,3 +90,11 @@ def _module_payloads_from_file(path: Path) -> dict[str, dict[str, Any]]:
     if "modules" in raw:
         return dict(raw["modules"] or {})
     return dict(raw)
+
+
+def _default_summary_subject(module_name: str) -> str:
+    if module_name.lower() == "address book":
+        return "Address Book Records"
+    if module_name.endswith("s"):
+        return module_name
+    return f"{module_name} Records"
