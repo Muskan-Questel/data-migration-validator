@@ -1,0 +1,8 @@
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+pytest-cache-files-*/
+runs/
+test_artifacts/
+*.pyc

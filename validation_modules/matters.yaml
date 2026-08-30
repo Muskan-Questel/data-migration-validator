@@ -1,0 +1,248 @@
+matters:
+  name: Matters
+  key_columns:
+  - mattercode
+  export_format: xlsx
+  column_aliases: {}
+  header_aliases:
+    mattercode:
+    - matter code
+    family: []
+    category:
+    - type
+    subcategory: []
+    type of mark: []
+    status: []
+    user:
+    - attorney
+    country:
+    - country code
+    shorttitle:
+    - short-title
+    - short title
+    longtitle:
+    - long-title
+    - long title
+    old code:
+    - old id
+    Parentage: []
+    goods: []
+    classes: []
+    notes: []
+    expiry date: []
+    priority date: []
+    priority country: []
+    priority number: []
+    filing date:
+    - application date
+    filing country:
+    - application country
+    filing number:
+    - application number
+    - application code
+    - filing code
+    publication date:
+    - pub/adv date
+    publication country:
+    - pub/adv country
+    publication number:
+    - publication code
+    - pub/adv number
+    - pub/adv code
+    grant date: []
+    grant country: []
+    grant number:
+    - grant code
+    Lodged Date:
+    - nat/reg entry date
+    Lodged Country:
+    - nat/reg entry country
+    Lodged Number:
+    - nat/reg entry number
+    - nat/reg entry code
+    Registration of Unitary Effect Date:
+    - nat/reg publication date
+    Registration of Unitary Effect Country:
+    - nat/reg publication country
+    Registration of Unitary Effect Number:
+    - nat/reg publication number
+    - nat/reg publication code
+    client:
+    - client name
+    clientref:
+    - client ref
+    - client reference
+    who pays the bill:
+    - billing address
+    renewal client:
+    - renewals client
+    renewal billing:
+    - renewals billing
+    associate:
+    - associate (<type name>)
+    associate reference: []
+    applicants:
+    - applicant
+    inventors:
+    - inventor
+    Renewals:
+    - responsible
+    setupdate:
+    - setup date
+    - open date
+    - created date
+    parent mattercode: []
+  query_template: |
+    SELECT DISTINCT
+        m.id 'Case ID'
+      , m.mattercode 'mattercode'
+      , m.oldcode 'old code'
+      , u.username 'user'
+      , IFNULL(f.family, '') 'family'
+      , m.country 'country'
+      , IFNULL(m.shorttitle, '') 'shorttitle'
+      , IFNULL(m.longtitle, '') 'longtitle'
+      , IFNULL(parent.mattercode, '') 'parent mattercode'
+      , IFNULL(pdc.description, '') 'category'
+      , IFNULL(pds.description, '') 'subcategory'
+      , CASE m.status
+            WHEN 0 THEN 'Open'
+            WHEN 100 THEN 'Closed'
+            ELSE pd_t.description
+        END 'status'
+      , IF(m.expirydate <> 0, CONVERT(CONVERT(m.expirydate, DATE), CHAR), '') 'expiry date'
+      , IFNULL(m.notes, '') 'notes'
+      , IFNULL(m.clientref, '') 'clientref'
+      , IFNULL(m.parentage, '') 'Parentage'
+      , IFNULL(pd_r.description, '') 'Renewals'
+      , IFNULL(GROUP_CONCAT(DISTINCT mc_asso.reference SEPARATOR '; '),'') AS 'associate reference'
+      , IF(m.setupdate <> 0, CONVERT(CONVERT(m.setupdate, DATE), CHAR), '') 'setupdate'
+      , IF(h1.date <> 0, CONVERT(CONVERT(h1.date, DATE), CHAR), '') 'priority date'
+      , IFNULL(h1.country, '') 'priority country'
+      , IFNULL(h1.code, '') 'priority number'
+      , IF(h200.date <> 0, CONVERT(CONVERT(h200.date, DATE), CHAR), '') 'PCT Filing Date'
+      , IFNULL(h200.country, '') 'PCT Filing Country'
+      , IFNULL(h200.code, '') 'PCT Filing Number'
+      , IF(h201.date <> 0, CONVERT(CONVERT(h201.date, DATE), CHAR), '') 'PCT Publication Date'
+      , IFNULL(h201.country, '') 'PCT Publication Country'
+      , IFNULL(h201.code, '') 'PCT Publication Number'
+      , IF(h202.date <> 0, CONVERT(CONVERT(h202.date, DATE), CHAR), '') 'Parent Filing Date'
+      , IFNULL(h202.country, '') 'Parent Filing Country'
+      , IFNULL(h202.code, '') 'Parent Filing Number'
+      , IF(h203.date <> 0, CONVERT(CONVERT(h203.date, DATE), CHAR), '') 'Parent Publication Date'
+      , IFNULL(h203.country, '') 'Parent Publication Country'
+      , IFNULL(h203.code, '') 'Parent Publication Number'
+      , IF(h204.date <> 0, CONVERT(CONVERT(h204.date, DATE), CHAR), '') 'Parent Grant Date'
+      , IFNULL(h204.country, '') 'Parent Grant Country'
+      , IFNULL(h204.code, '') 'Parent Grant Number'
+      , IF(h2.date <> 0, CONVERT(CONVERT(h2.date, DATE), CHAR), '') 'filing date'
+      , IFNULL(h2.country, '') 'filing country'
+      , IFNULL(h2.code, '') 'filing number'
+      , IF(h3.date <> 0, CONVERT(CONVERT(h3.date, DATE), CHAR), '') 'publication date'
+      , IFNULL(h3.country, '') 'publication country'
+      , IFNULL(h3.code, '') 'publication number'
+      , IF(h4.date <> 0, CONVERT(CONVERT(h4.date, DATE), CHAR), '') 'grant date'
+      , IFNULL(h4.country, '') 'grant country'
+      , IFNULL(h4.code, '') 'grant number'
+      , IF(h5.date <> 0, CONVERT(CONVERT(h5.date, DATE), CHAR), '') 'Lodged Date'
+      , IFNULL(h5.country, '') 'Lodged Country'
+      , IFNULL(h5.code, '') 'Lodged Number'
+      , IF(h51.date <> 0, CONVERT(CONVERT(h51.date, DATE), CHAR), '') 'Registration of Unitary Effect Date'
+      , IFNULL(h51.country, '') 'Registration of Unitary Effect Country'
+      , IFNULL(h51.code, '') 'Registration of Unitary Effect Number'
+      , IF(h205.date <> 0, CONVERT(CONVERT(h205.date, DATE), CHAR), '') 'Opposition Filing Date'
+      , IFNULL(h205.country, '') 'Opposition Filing Country'
+      , IFNULL(h205.code, '') 'Opposition Filing Number'
+      , IF(h206.date <> 0, CONVERT(CONVERT(h206.date, DATE), CHAR), '') 'Opposed Application Date'
+      , IFNULL(h206.country, '') 'Opposed Application Country'
+      , IFNULL(h206.code, '') 'Opposed Application Number'
+      , cos.organisation 'client'
+      , cs.sitename 'who pays the bill'
+      , cosr.organisation 'renewal client'
+      , csr.sitename 'renewal billing'
+      ,IFNULL(GROUP_CONCAT(
+            DISTINCT CASE
+                WHEN mc_asso.reference <> ''
+                THEN CONCAT(s_asso.sitename, '(', mc_asso.reference, ')')
+                ELSE s_asso.sitename
+            END
+        ),''
+      ) 'associate'
+      , GROUP_CONCAT(DISTINCT cons.name) 'applicants'
+      , GROUP_CONCAT(DISTINCT cons1.name) 'inventors'
+      , m.extra3 'classes'
+      , m.extra1 'goods'
+      , IFNULL(pd_m.description, '') 'type of mark'
+    FROM myprompts_matters m
+             LEFT JOIN myprompts_family f
+                       ON f.orgid = :org_id AND m.family = f.id
+             LEFT JOIN myprompts_matters AS parent
+                       ON m.parent_matter_id = parent.id AND parent.orgid = :org_id
+             LEFT JOIN preferences_dropdown pdc
+                       ON pdc.orgid = :org_id AND pdc.type = 'MATTER_CATEGORIES' AND pdc.oldid = m.category
+             LEFT JOIN preferences_dropdown pds
+                       ON pds.orgid = :org_id
+                      AND pds.type = CASE
+                                         WHEN m.category = 11 THEN 'MATTER_SUBCATEGORIES_TM'
+                                         ELSE CONCAT('MATTER_SUBCATEGORIES_', pdc.special)
+                                     END
+                      AND m.subcategory = pds.oldid
+             LEFT JOIN preferences_dropdown pd_t
+                       ON pd_t.orgid = :org_id AND pd_t.type LIKE 'MATTER_STATUS%' AND m.status = pd_t.oldid
+             LEFT JOIN preferences_dropdown pd_m
+                       ON pd_m.orgid = :org_id AND pd_m.type = 'TYPEOFMARK' AND m.typeofmark = pd_m.oldid
+             LEFT JOIN preferences_dropdown pd_r
+                       ON pd_r.orgid = :org_id AND pd_r.type = 'RENEWAL_RESPONSIBILITY' AND m.responsible = pd_r.oldid
+             LEFT JOIN myprompts_matterhistories h1
+                       ON h1.orgid = :org_id AND h1.hid = 1 AND m.id = h1.matterid
+             LEFT JOIN myprompts_matterhistories h2
+                       ON h2.orgid = :org_id AND h2.hid = 2 AND m.id = h2.matterid
+             LEFT JOIN myprompts_matterhistories h3
+                       ON h3.orgid = :org_id AND h3.hid = 3 AND m.id = h3.matterid
+             LEFT JOIN myprompts_matterhistories h4
+                       ON h4.orgid = :org_id AND h4.hid = 4 AND m.id = h4.matterid
+             LEFT JOIN myprompts_matterhistories h5
+                       ON h5.orgid = :org_id AND h5.hid = 5 AND m.id = h5.matterid
+             LEFT JOIN myprompts_matterhistories h51
+                       ON h51.orgid = :org_id AND h51.hid = 51 AND m.id = h51.matterid
+             LEFT JOIN myprompts_matterhistories h200
+                       ON h200.orgid = :org_id AND h200.hid = 200 AND m.id = h200.matterid
+             LEFT JOIN myprompts_matterhistories h201
+                       ON h201.orgid = :org_id AND h201.hid = 201 AND m.id = h201.matterid
+             LEFT JOIN myprompts_matterhistories h202
+                       ON h202.orgid = :org_id AND h202.hid = 202 AND m.id = h202.matterid
+             LEFT JOIN myprompts_matterhistories h203
+                       ON h203.orgid = :org_id AND h203.hid = 203 AND m.id = h203.matterid
+             LEFT JOIN myprompts_matterhistories h204
+                       ON h204.orgid = :org_id AND h204.hid = 204 AND m.id = h204.matterid
+             LEFT JOIN myprompts_matterhistories h205
+                       ON h205.orgid = :org_id AND h205.hid = 205 AND m.id = h205.matterid
+             LEFT JOIN myprompts_matterhistories h206
+                       ON h206.orgid = :org_id AND h206.hid = 206 AND m.id = h206.matterid
+             LEFT JOIN users u
+                       ON u.orgid = :org_id AND u.id = m.user
+             LEFT JOIN contacts_organisations cos
+                       ON cos.orgid = :org_id AND cos.id = m.oid
+             LEFT JOIN contacts_organisations cosr
+                       ON cosr.orgid = :org_id AND cosr.id = m.oid_renewals
+             LEFT JOIN contacts_sites cs
+                       ON cs.orgid = :org_id AND cs.id = m.sid
+             LEFT JOIN contacts_sites csr
+                       ON csr.orgid = :org_id AND csr.id = m.sid_renewals
+             LEFT JOIN myprompts_contacts mc_asso
+                       ON mc_asso.orgid = :org_id
+                      AND (mc_asso.category = 'associate' OR mc_asso.category = 'associate_other')
+                      AND mc_asso.matterid = m.id
+             LEFT JOIN contacts_sites s_asso
+                       ON s_asso.orgid = :org_id AND s_asso.id = mc_asso.sid
+             LEFT JOIN myprompts_contacts mc_app
+                       ON mc_app.orgid = :org_id AND mc_app.category = 'applicant' AND mc_app.matterid = m.id
+             LEFT JOIN myprompts_contacts mc_inv
+                       ON mc_inv.orgid = :org_id AND mc_inv.category = 'inventor' AND mc_inv.matterid = m.id
+             LEFT JOIN contacts_special cons
+                       ON cons.orgid = :org_id AND mc_app.cid = cons.id
+             LEFT JOIN contacts_special cons1
+                       ON cons1.orgid = :org_id AND mc_inv.cid = cons1.id
+    WHERE m.orgid = :org_id
+    GROUP BY m.id
+    ORDER BY m.id ASC;

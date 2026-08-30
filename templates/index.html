@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Migration Data Comparison</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #5f6b7a;
+      --line: #d9dee7;
+      --panel: #f7f9fc;
+      --accent: #176b87;
+      --accent-dark: #124e63;
+      --danger: #a33a2a;
+    }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0 0 24px;
+      color: var(--muted);
+    }
+    form, .result, .error, .loader {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+      background: var(--panel);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    input, select {
+      box-sizing: border-box;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 15px;
+      background: #ffffff;
+      color: var(--ink);
+    }
+    button, .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 14px;
+      background: var(--accent);
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button:hover, .button:hover {
+      background: var(--accent-dark);
+    }
+    button:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
+    .actions {
+      margin-top: 18px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .result, .error, .loader {
+      margin-top: 20px;
+    }
+    .loader {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+    }
+    .loader.is-visible {
+      display: flex;
+    }
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 3px solid #cbd5e1;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      flex: 0 0 auto;
+      animation: spin 0.8s linear infinite;
+    }
+    .loader strong {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--ink);
+    }
+    .loader p {
+      margin: 0;
+    }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    .error {
+      border-color: #e2a59b;
+      color: var(--danger);
+      background: #fff7f5;
+    }
+    table {
+      width: 100%;
+      margin-top: 12px;
+      border-collapse: collapse;
+      background: #ffffff;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background: #eef3f8;
+    }
+    @media (max-width: 700px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Migration Data Comparison</h1>
+    <p>Upload the source Excel file, choose a region and module, and generate the DB extract plus discrepancy report.</p>
+
+    <form id="validation-form" action="/validate" method="post" enctype="multipart/form-data">
+      <div class="grid">
+        <div>
+          <label for="source_file">Source File</label>
+          <input id="source_file" name="source_file" type="file" accept=".csv,.xlsx,.xlsm" required>
+        </div>
+        <div>
+          <label for="org_id">Org ID</label>
+          <input id="org_id" name="org_id" type="number" min="1" required>
+        </div>
+        <div>
+          <label for="region_id">Region</label>
+          <select id="region_id" name="region_id" required>
+            {% for identifier, region in regions.items() %}
+              <option value="{{ identifier }}">{{ region.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="module_id">Module</label>
+          <select id="module_id" name="module_id" required>
+            {% for identifier, module in modules.items() %}
+              <option value="{{ identifier }}">{{ module.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="export_format">DB Export Format</label>
+          <select id="export_format" name="export_format">
+            <option value="xlsx">Excel</option>
+            <option value="csv">CSV</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="submit-button" type="submit">Run Validation</button>
+      </div>
+    </form>
+
+    <div id="validation-loader" class="loader" role="status" aria-live="polite" aria-hidden="true">
+      <span class="spinner" aria-hidden="true"></span>
+      <div>
+        <strong>Validation in progress</strong>
+        <p>Fetching database records and comparing them with the uploaded source file.</p>
+      </div>
+    </div>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if result %}
+      <section class="result">
+        <h2>Validation Complete</h2>
+        <p>Region: {{ result.region_name }}</p>
+        <div class="actions">
+          <a class="button" href="/download/{{ result.run_id }}/{{ result.db_export_name }}">Download DB Extract</a>
+          <a class="button" href="/download/{{ result.run_id }}/{{ result.report_name }}">Download Report</a>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Metric</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            {% for key, value in result.summary.items() %}
+              <tr><td>{{ key.replace('_', ' ').title() }}</td><td>{{ value }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% endif %}
+  </main>
+  <script>
+    const validationForm = document.getElementById('validation-form');
+    const validationLoader = document.getElementById('validation-loader');
+    const submitButton = document.getElementById('submit-button');
+
+    validationForm.addEventListener('submit', () => {
+      validationLoader.classList.add('is-visible');
+      validationLoader.setAttribute('aria-hidden', 'false');
+      validationForm.setAttribute('aria-busy', 'true');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Validating...';
+    });
+  </script>
+</body>
+</html>

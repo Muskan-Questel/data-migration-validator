@@ -1,0 +1,134 @@
+addressbook:
+  name: Address Book
+  key_columns:
+  - organisation name
+  export_format: xlsx
+  column_aliases: {}
+  header_aliases:
+    organisation name:
+    - client
+    organisation code: []
+    organisation category:
+    - category
+    organisation type: []
+    organisation oldid:
+    - organisation old id
+    - organisation id
+    organisation notes: []
+    organisation extra care notes: []
+    location name: []
+    location category: []
+    location address: []
+    location street1: []
+    location street2: []
+    location street3: []
+    location city: []
+    location county: []
+    location postcode: []
+    location country: []
+    location phone: []
+    location phone2: []
+    location email: []
+    location website: []
+    location notes: []
+    location oldid:
+    - location old id
+    - location id
+    location vat: []
+    location extra care notes: []
+    person name: []
+    person title: []
+    person letter name: []
+    person salutation: []
+    person address name: []
+    person job title: []
+    person phone: []
+    person phone2: []
+    person phone3: []
+    person email: []
+    person cc: []
+    person oldid:
+    - person old id
+    - person id
+    person notes: []
+  query_template: |
+    SELECT o.id 'organisation oldid'
+         , o.organisation 'organisation name'
+         , IFNULL(o.orgcode, '') 'organisation code'
+         , IFNULL(cat.cats, '') 'organisation category'
+         , IFNULL(ot.description, '') 'organisation type'
+         , IFNULL(ot2.description, '') 'organisation secondary type'
+         , IFNULL(o.notes, '') 'organisation notes'
+         , IFNULL(o.extracare_notes, '') 'organisation extra care notes'
+         , IFNULL(tm.mattercode, '') 'linked matter'
+         , s.id 'location oldid'
+         , s.sitename 'location name'
+         , IFNULL(sites.site, '') 'location category'
+         , s.address 'location address'
+         , IFNULL(s.postcode, '') 'location postcode'
+         , s.country 'location country'
+         , s.phone1 'location phone'
+         , IFNULL(s.phone2, '') 'location phone2'
+         , s.email1 'location email'
+         , IFNULL(s.website, '') 'location website'
+         , IFNULL(s.vat, '') 'location vat'
+         , IFNULL(s.company_number, '') 'location company number'
+         , IFNULL(s.bank_account, '') 'location bank account'
+         , CASE s.active
+               WHEN 1 THEN 'Active'
+               ELSE ''
+           END 'location active'
+         , IFNULL(s.notes, '') 'location notes'
+         , IFNULL(s.extracare_notes, '') 'location extra care notes'
+         , IFNULL(c.id, '') 'person oldid'
+         , IFNULL(c.addressname_title, '') 'person title'
+         , TRIM(CONCAT(IFNULL(c.name_first, ''), ' ', IFNULL(c.name_last, ''))) 'person name'
+         , IFNULL(c.phone1, '') 'person phone'
+         , IFNULL(c.phone2, '') 'person phone2'
+         , IFNULL(c.email1, '') 'person email'
+         , IFNULL(c.jobtitle, '') 'person job title'
+    FROM contacts_organisations o
+             LEFT JOIN (
+                 SELECT oid,
+                        GROUP_CONCAT(CASE categoryid
+                                         WHEN 1 THEN 'Owner'
+                                     END SEPARATOR ', ') cats
+                 FROM contacts_organisations_categories
+                 WHERE orgid = :org_id
+                 GROUP BY oid
+             ) cat
+                       ON o.id = cat.oid
+             LEFT JOIN preferences_dropdown ot
+                       ON ot.orgid = :org_id
+                      AND ot.type = 'ORGANISATION_TYPES'
+                      AND ot.oldid = o.type
+             LEFT JOIN preferences_dropdown ot2
+                       ON ot2.orgid = :org_id
+                      AND ot2.type = 'ORGANISATION_TYPES'
+                      AND ot2.oldid = o.secondary_type
+             LEFT JOIN contacts_sites s
+                       ON s.orgid = :org_id
+                      AND o.id = s.oid
+             LEFT JOIN (
+                 SELECT sid,
+                        GROUP_CONCAT(CASE categoryid
+                                         WHEN 1 THEN 'Correspondence'
+                                         WHEN 2 THEN 'Visiting'
+                                         WHEN 3 THEN 'Billing'
+                                         WHEN 4 THEN 'Creditor'
+                                         WHEN 5 THEN 'Renewal Correspondence'
+                                         WHEN 6 THEN 'Renewal Billing'
+                                     END SEPARATOR ', ') site
+                 FROM contacts_sites_categories
+                 WHERE orgid = :org_id
+                 GROUP BY sid
+             ) sites
+                       ON s.id = sites.sid
+             LEFT JOIN contacts c
+                       ON c.orgid = :org_id
+                      AND s.id = c.sid
+             LEFT JOIN myprompts_matters tm
+                       ON tm.id = o.linked_matter
+                      AND tm.orgid = :org_id
+    WHERE o.orgid = :org_id
+    ORDER BY o.id, s.id, c.id;

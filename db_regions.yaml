@@ -1,0 +1,10 @@
+regions:
+  europe:
+    name: Europe
+    env_prefix: EUROPE
+  centralus:
+    name: CentralUS
+    env_prefix: CENTRALUS
+  uk:
+    name: UK
+    env_prefix: UK
