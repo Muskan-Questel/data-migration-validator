@@ -1,0 +1,71 @@
+tasks:
+  name: Tasks
+  key_columns:
+  - mattercode
+  - task name
+  - due date
+  export_format: xlsx
+  column_aliases: {}
+  header_aliases:
+    mattercode:
+    - matter code
+    - matter
+    status:
+    - task status
+    user: []
+    due date:
+    - task due date
+    - date
+    done date:
+    - task done date
+    task name:
+    - name
+    type:
+    - task type
+    task notes:
+    - notes
+    importance: []
+    email reminder:
+    - email
+    - reminder
+    task old id:
+    - old id
+    - oldid
+    - task id
+  query_template: |
+    SELECT t.id 'task old id'
+         , IFNULL(m.mattercode, '') 'mattercode'
+         , CASE t.status
+               WHEN 0 THEN 'Open'
+               WHEN 100 THEN 'Closed'
+               ELSE IFNULL(pd_s.description, t.status)
+           END 'status'
+         , IFNULL(u.username, '') 'user'
+         , IF(t.duedate IS NOT NULL AND t.duedate <> 0, CONVERT(CONVERT(t.duedate, DATE), CHAR), '') 'due date'
+         , IF(t.donedate IS NOT NULL AND t.donedate <> 0, CONVERT(CONVERT(t.donedate, DATE), CHAR), '') 'done date'
+         , IFNULL(t.task, '') 'task name'
+         , '' AS 'type'
+         , IFNULL(t.notes, '') 'task notes'
+         , IFNULL(pd_i.description, t.importance) 'importance'
+         , CASE t.emailreminder
+               WHEN 1 THEN 'Yes'
+               WHEN 0 THEN ''
+               ELSE IFNULL(t.emailreminder, '')
+           END 'email reminder'
+    FROM myprompts_tasks t
+             LEFT JOIN myprompts_matters m
+                       ON m.orgid = :org_id
+                      AND m.id = t.matterid
+             LEFT JOIN users u
+                       ON u.orgid = :org_id
+                      AND u.id = t.user
+             LEFT JOIN preferences_dropdown pd_s
+                       ON pd_s.orgid = :org_id
+                      AND pd_s.type = 'TASK_STATUS'
+                      AND pd_s.oldid = t.status
+             LEFT JOIN preferences_dropdown pd_i
+                       ON pd_i.orgid = :org_id
+                      AND pd_i.type = 'TASK_IMPORTANCE'
+                      AND pd_i.oldid = t.importance
+    WHERE t.orgid = :org_id
+    ORDER BY t.id ASC;
