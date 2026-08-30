@@ -153,11 +153,16 @@ def _mismatched_records(
     for key in matched_keys:
         excel_row = excel_by_key[key]
         db_row = db_by_key[key]
-        mismatched_columns = [
-            column
-            for column in value_columns
-            if not _exact_equal(excel_row[column], db_row[column])
-        ]
+        mismatched_columns = []
+        for column in [*key_columns, *value_columns]:
+            left = excel_row[column]
+            right = db_row[column]
+            if column in key_columns:
+                if _normalize_key_value(left) == _normalize_key_value(right) and not _exact_equal(left, right):
+                    mismatched_columns.append(column)
+                continue
+            if not _exact_equal(left, right):
+                mismatched_columns.append(column)
         if not mismatched_columns:
             continue
 
@@ -269,15 +274,26 @@ def _normalize_header(value: Any) -> str:
 def _exact_equal(left: Any, right: Any) -> bool:
     if pd.isna(left) and pd.isna(right):
         return True
+
+    if isinstance(left, str) and isinstance(right, str):
+        return left == right
+
     if type(left) is not type(right):
         return False
     return bool(left == right)
 
 
+def _normalize_key_value(value: Any) -> str:
+    if pd.isna(value):
+        return ""
+    return " ".join(str(value).strip().split())
+
+
 def _rows_by_key(df: pd.DataFrame, key_columns: list[str]) -> dict[tuple[Any, ...], pd.Series]:
     rows: dict[tuple[Any, ...], pd.Series] = {}
     for _, row in df.iterrows():
-        rows[tuple(row[column] for column in key_columns)] = row
+        key = tuple(_normalize_key_value(row[column]) for column in key_columns)
+        rows[key] = row
     return rows
 
 
