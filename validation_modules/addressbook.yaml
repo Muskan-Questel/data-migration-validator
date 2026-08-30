@@ -2,6 +2,8 @@ addressbook:
   name: Address Book
   key_columns:
   - organisation name
+  - location name
+  - person name
   export_format: xlsx
   column_aliases: {}
   header_aliases:
