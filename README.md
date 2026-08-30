@@ -53,8 +53,8 @@ The app connects directly to the selected region's MySQL host. Connect to the re
 Each validation run creates a folder under `runs/` with:
 
 - folder name in `YYYYMMDD_HHMMSS_orgid` format
-- DB extract as `.xlsx` or `.csv`
-- final `comparison_report.xlsx`
+- DB extract named `{module}_{orgid}_db_extract.xlsx` or `{module}_{orgid}_db_extract.csv`
+- final `{module}_{orgid}_comparison_report.xlsx`
 
 The report includes `Summary`, `Column_Mapping`, `Mismatched_Records`, `Extra_In_Database`, and `Extra_In_Excel`.
 `Column_Mapping` lists every uploaded Excel column in Column A and every DB column in Column B, pairing mapped columns on the same row and leaving the opposite cell blank for unmapped columns.

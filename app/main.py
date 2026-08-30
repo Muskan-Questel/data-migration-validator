@@ -80,7 +80,12 @@ async def validate(
     try:
         excel_df = read_source_file(upload_path)
         db_df = execute_module_query(module, region, org_id)
-        db_export = export_dataframe(db_df, run_dir / "db_extract", selected_export_format)
+        output_name_prefix = f"{module.identifier}_{org_id}"
+        db_export = export_dataframe(
+            db_df,
+            run_dir / f"{output_name_prefix}_db_extract",
+            selected_export_format,
+        )
         comparison = compare_dataframes(
             excel_df=excel_df,
             db_df=db_df,
@@ -88,7 +93,7 @@ async def validate(
             column_aliases=module.column_aliases,
             header_aliases=module.header_aliases,
         )
-        report_path = run_dir / "comparison_report.xlsx"
+        report_path = run_dir / f"{output_name_prefix}_comparison_report.xlsx"
         write_report(comparison, str(report_path))
     except Exception as exc:
         return templates.TemplateResponse(
