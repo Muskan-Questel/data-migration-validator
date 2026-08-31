@@ -20,6 +20,7 @@ def compare_dataframes(
     excel_df: pd.DataFrame,
     db_df: pd.DataFrame,
     key_columns: list[str],
+    optional_key_columns: list[str] | None = None,
     column_aliases: dict[str, str] | None = None,
     header_aliases: dict[str, list[str]] | None = None,
     summary_subject: str = "Records",
@@ -34,6 +35,12 @@ def compare_dataframes(
 
     excel_columns = list(excel_df.columns)
     db_columns = list(db_df.columns)
+    resolved_key_columns = _resolve_key_columns(
+        key_columns,
+        optional_key_columns or [],
+        excel_columns,
+        db_columns,
+    )
 
     missing_keys = [
         key
@@ -45,30 +52,32 @@ def compare_dataframes(
             "Configured key columns must exist in both Excel and DB extract: "
             + ", ".join(missing_keys)
         )
+    if not resolved_key_columns:
+        raise ValueError("At least one configured key column must exist in both Excel and DB extract.")
 
     missing_db_columns = [column for column in excel_columns if column not in db_columns]
     compare_columns = [column for column in excel_columns if column not in missing_db_columns]
 
-    excel_dup_mask = excel_df.duplicated(subset=key_columns, keep=False)
-    db_dup_mask = db_df.duplicated(subset=key_columns, keep=False)
+    excel_dup_mask = excel_df.duplicated(subset=resolved_key_columns, keep=False)
+    db_dup_mask = db_df.duplicated(subset=resolved_key_columns, keep=False)
 
     excel_unique = excel_df.loc[~excel_dup_mask].copy()
     db_unique = db_df.loc[~db_dup_mask].copy()
 
-    excel_by_key = _rows_by_key(excel_unique, key_columns)
-    db_by_key = _rows_by_key(db_unique, key_columns)
+    excel_by_key = _rows_by_key(excel_unique, resolved_key_columns)
+    db_by_key = _rows_by_key(db_unique, resolved_key_columns)
 
     excel_keys = set(excel_by_key)
     db_keys = set(db_by_key)
     matched_keys = sorted(excel_keys & db_keys, key=str)
 
-    extra_in_excel = _keys_for_records(excel_by_key, excel_keys - db_keys, key_columns)
-    extra_in_database = _keys_for_records(db_by_key, db_keys - excel_keys, key_columns)
+    extra_in_excel = _keys_for_records(excel_by_key, excel_keys - db_keys, resolved_key_columns)
+    extra_in_database = _keys_for_records(db_by_key, db_keys - excel_keys, resolved_key_columns)
     mismatched_records, highlighted_cells = _mismatched_records(
         excel_by_key,
         db_by_key,
         matched_keys,
-        key_columns,
+        resolved_key_columns,
         compare_columns,
     )
 
@@ -77,7 +86,7 @@ def compare_dataframes(
         "db_rows": len(db_df),
         "compared_columns": len(compare_columns),
         "matched_rows": len(matched_keys),
-        "mismatched_records": mismatched_records[key_columns].drop_duplicates().shape[0]
+        "mismatched_records": mismatched_records[resolved_key_columns].drop_duplicates().shape[0]
         if not mismatched_records.empty
         else 0,
         "extra_records_in_database": len(extra_in_database),
@@ -107,6 +116,21 @@ def compare_dataframes(
         summary_rows=summary_rows,
         highlighted_cells={"Mismatched_Records": highlighted_cells},
     )
+
+
+def _resolve_key_columns(
+    required_key_columns: list[str],
+    optional_key_columns: list[str],
+    excel_columns: list[str],
+    db_columns: list[str],
+) -> list[str]:
+    resolved_key_columns = list(required_key_columns)
+    for column in optional_key_columns:
+        if column in resolved_key_columns:
+            continue
+        if column in excel_columns and column in db_columns:
+            resolved_key_columns.append(column)
+    return resolved_key_columns
 
 
 def write_report(result: ComparisonResult, output_path: str) -> None:

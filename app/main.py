@@ -90,6 +90,7 @@ async def validate(
             excel_df=excel_df,
             db_df=db_df,
             key_columns=module.key_columns,
+            optional_key_columns=module.optional_key_columns,
             column_aliases=module.column_aliases,
             header_aliases=module.header_aliases,
             summary_subject=module.summary_subject,

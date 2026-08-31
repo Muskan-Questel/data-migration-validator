@@ -1,0 +1,110 @@
+statutory_addressbook:
+  name: Statutory Address Book
+  summary_subject: Statutory Address Book Records
+  key_columns: []
+  optional_key_columns:
+  - name
+  - type
+  - phone
+  - email
+  export_format: xlsx
+  column_aliases: {}
+  header_aliases:
+    contact id:
+    - contact old id
+    name: []
+    formal name: []
+    formal first name:
+    - formal name first
+    formal middle name:
+    - formal name middle
+    formal last name:
+    - formal name last
+    address name: []
+    salutation: []
+    type:
+    - category
+    address: []
+    street1: []
+    street2: []
+    street3: []
+    city: []
+    county: []
+    postcode: []
+    phone:
+    - phone number
+    email: []
+    cc: []
+    domicile:
+    - country
+    nationality: []
+    second nationality:
+    - other nationality
+    - nationality2
+    dob:
+    - date of birth
+    notes:
+    - remarks
+    oldid:
+    - id
+    - old id
+    active: []
+    formal type: []
+    entity: []
+    orgcode: []
+  query_template: |
+    SELECT cs.id 'contact id'
+         , CASE
+               WHEN cs.type = 1 AND cs.licensee = 0 THEN 'Applicant'
+               WHEN cs.type = 1 AND cs.licensee = 1 THEN 'Applicant,Licensee'
+               WHEN cs.type = 2 AND cs.licensee = 0 THEN 'Inventor'
+               WHEN cs.type = 2 AND cs.licensee = 1 THEN 'Inventor,Licensee'
+               WHEN cs.type = 5 AND cs.licensee = 0 THEN 'Applicant,Inventor'
+               WHEN cs.type = 5 AND cs.licensee = 1 THEN 'Applicant,Inventor,Licensee'
+               WHEN cs.licensee = 1 THEN 'Licensee'
+               ELSE ''
+           END 'type'
+         , cs.name 'name'
+         , IFNULL(cs.formal_name_title, '') 'formal name'
+         , IFNULL(cs.formal_name_first, '') 'formal first name'
+         , IFNULL(cs.formal_name_middle, '') 'formal middle name'
+         , IFNULL(cs.formal_name_last, '') 'formal last name'
+         , IFNULL(cs.addressname, '') 'address name'
+         , IFNULL(cs.salutation, '') 'salutation'
+         , IFNULL(cs.address, '') 'address'
+         , IFNULL(cs.street1, '') 'street1'
+         , IFNULL(cs.street2, '') 'street2'
+         , IFNULL(cs.street3, '') 'street3'
+         , IFNULL(cs.city, '') 'city'
+         , IFNULL(cs.county, '') 'county'
+         , IFNULL(cs.postcode, '') 'postcode'
+         , IFNULL(cs.phone, '') 'phone'
+         , IFNULL(cs.email, '') 'email'
+         , IFNULL(cs.cc, '') 'cc'
+         , IFNULL(cs.domicile, '') 'domicile'
+         , IFNULL(cs.nationality, '') 'nationality'
+         , IFNULL(cs.nationality2, '') 'second nationality'
+         , IF(cs.dob IS NOT NULL AND cs.dob <> 0, CONVERT(CONVERT(cs.dob, DATE), CHAR), '') 'dob'
+         , IFNULL(cs.notes, '') 'notes'
+         , IFNULL(cs.oldid, '') 'oldid'
+         , CASE cs.status
+               WHEN 0 THEN 'No'
+               WHEN 1 THEN 'Yes'
+               ELSE ''
+           END 'active'
+         , CASE cs.formalType
+               WHEN 0 THEN 'individual'
+               WHEN 1 THEN 'organisation'
+               ELSE ''
+           END 'formal type'
+         , CASE cs.entity
+               WHEN 0 THEN ''
+               WHEN 1 THEN 'Micro'
+               WHEN 2 THEN 'Small'
+               WHEN 3 THEN 'Large'
+               ELSE ''
+           END 'entity'
+         , IFNULL(cs.orgcode, '') 'orgcode'
+    FROM contacts_special cs
+    WHERE cs.orgid = :org_id
+    ORDER BY cs.name ASC;

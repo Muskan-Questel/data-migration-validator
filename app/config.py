@@ -14,6 +14,7 @@ class ModuleConfig:
     summary_subject: str
     query_template: str
     key_columns: list[str]
+    optional_key_columns: list[str]
     column_aliases: dict[str, str]
     header_aliases: dict[str, list[str]]
     export_format: str
@@ -74,6 +75,7 @@ def _module_from_payload(identifier: str, payload: dict[str, Any]) -> ModuleConf
         summary_subject=payload.get("summary_subject") or _default_summary_subject(payload["name"]),
         query_template=payload["query_template"],
         key_columns=list(payload["key_columns"]),
+        optional_key_columns=list(payload.get("optional_key_columns") or []),
         column_aliases=dict(payload.get("column_aliases") or {}),
         header_aliases={
             column: list(aliases)
