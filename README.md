@@ -59,5 +59,7 @@ Each validation run creates a folder under `runs/` with:
 The report includes `Summary`, `Column_Mapping`, `Mismatched_Records`, `Extra_In_Database`, and `Extra_In_Excel`.
 `Column_Mapping` lists every uploaded Excel column in Column A and every DB column in Column B, pairing mapped columns on the same row and leaving the opposite cell blank for unmapped columns.
 Configured `header_aliases` are matched case-insensitively and ignore spaces, hyphens, and punctuation, so `matter code`, `Matter-Code`, and `mattercode` can all map to the same query header.
-`Mismatched_Records` contains complete Excel and database row pairs for matched keys,
-with only the mismatched value cells highlighted.
+`Mismatched_Records` contains one row per mismatched matched key. Key columns appear once,
+and only fields that differ in at least one record have adjacent `(Excel)` and `(Database)`
+columns. Differing values are highlighted.
+Whitespace-only differences use a light-green highlight; other differences use yellow.

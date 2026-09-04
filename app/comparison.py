@@ -13,7 +13,7 @@ class ComparisonResult:
     sheets: dict[str, pd.DataFrame]
     summary: dict[str, Any]
     summary_rows: list[dict[str, Any]]
-    highlighted_cells: dict[str, set[tuple[int, int]]]
+    highlighted_cells: dict[str, dict[tuple[int, int], str]]
 
 
 def compare_dataframes(
@@ -86,7 +86,9 @@ def compare_dataframes(
         "db_rows": len(db_df),
         "compared_columns": len(compare_columns),
         "matched_rows": len(matched_keys),
-        "mismatched_records": mismatched_records[resolved_key_columns].drop_duplicates().shape[0]
+        "mismatched_records": mismatched_records[
+            resolved_key_columns
+        ].drop_duplicates().shape[0]
         if not mismatched_records.empty
         else 0,
         "extra_records_in_database": len(extra_in_database),
@@ -134,11 +136,18 @@ def _resolve_key_columns(
 
 
 def write_report(result: ComparisonResult, output_path: str) -> None:
-    mismatch_fill = PatternFill(
-        fill_type="solid",
-        start_color="FFF2CC",
-        end_color="FFF2CC",
-    )
+    mismatch_fills = {
+        "mismatch": PatternFill(
+            fill_type="solid",
+            start_color="FFF2CC",
+            end_color="FFF2CC",
+        ),
+        "whitespace": PatternFill(
+            fill_type="solid",
+            start_color="FFC6EFCE",
+            end_color="FFC6EFCE",
+        ),
+    }
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         for sheet_name, sheet_df in result.sheets.items():
@@ -156,8 +165,10 @@ def write_report(result: ComparisonResult, output_path: str) -> None:
                 )
         for sheet_name, cells in result.highlighted_cells.items():
             worksheet = writer.book[sheet_name]
-            for row_number, column_number in cells:
-                worksheet.cell(row=row_number, column=column_number).fill = mismatch_fill
+            for (row_number, column_number), highlight_type in cells.items():
+                worksheet.cell(row=row_number, column=column_number).fill = mismatch_fills[
+                    highlight_type
+                ]
 
 
 def _mismatched_records(
@@ -166,43 +177,61 @@ def _mismatched_records(
     matched_keys: list[tuple[Any, ...]],
     key_columns: list[str],
     compare_columns: list[str],
-) -> tuple[pd.DataFrame, set[tuple[int, int]]]:
-    rows: list[dict[str, Any]] = []
-    highlighted_cells: set[tuple[int, int]] = set()
-    columns = [
-        *key_columns,
-        "Source",
-        *[column for column in compare_columns if column not in key_columns],
-    ]
-    column_numbers = {column: index + 1 for index, column in enumerate(columns)}
-    value_columns = [column for column in compare_columns if column not in key_columns]
+) -> tuple[pd.DataFrame, dict[tuple[int, int], str]]:
+    mismatch_rows: list[tuple[pd.Series, pd.Series, list[str]]] = []
+    included_value_columns: set[str] = set()
     for key in matched_keys:
         excel_row = excel_by_key[key]
         db_row = db_by_key[key]
-        mismatched_columns = []
-        for column in [*key_columns, *value_columns]:
-            left = excel_row[column]
-            right = db_row[column]
-            if column in key_columns:
-                if _normalize_key_value(left) == _normalize_key_value(right) and not _exact_equal(left, right):
-                    mismatched_columns.append(column)
-                continue
-            if not _exact_equal(left, right):
-                mismatched_columns.append(column)
-        if not mismatched_columns:
-            continue
+        mismatched_columns = [
+            column
+            for column in compare_columns
+            if column not in key_columns
+            and not _exact_equal(excel_row[column], db_row[column])
+        ]
+        if mismatched_columns:
+            mismatch_rows.append((excel_row, db_row, mismatched_columns))
+            included_value_columns.update(mismatched_columns)
 
-        excel_output_row = {column: excel_row[column] for column in compare_columns}
-        excel_output_row["Source"] = "Excel"
-        db_output_row = {column: db_row[column] for column in compare_columns}
-        db_output_row["Source"] = "Database"
-        rows.extend([excel_output_row, db_output_row])
+    value_columns = [
+        column
+        for column in compare_columns
+        if column not in key_columns and column in included_value_columns
+    ]
+    columns = [
+        *key_columns,
+        *[
+            source_column
+            for column in value_columns
+            for source_column in (f"{column} (Excel)", f"{column} (Database)")
+        ],
+    ]
+    column_numbers = {column: index + 1 for index, column in enumerate(columns)}
+    rows: list[dict[str, Any]] = []
+    highlighted_cells: dict[tuple[int, int], str] = {}
+    for excel_row, db_row, mismatched_columns in mismatch_rows:
+        output_row = {
+            **{column: excel_row[column] for column in key_columns},
+            **{
+                source_column: value
+                for column in value_columns
+                for source_column, value in (
+                    (f"{column} (Excel)", excel_row[column]),
+                    (f"{column} (Database)", db_row[column]),
+                )
+            },
+        }
+        rows.append(output_row)
 
-        excel_sheet_row = len(rows)
-        db_sheet_row = len(rows) + 1
+        sheet_row = len(rows) + 1
         for column in mismatched_columns:
-            highlighted_cells.add((excel_sheet_row, column_numbers[column]))
-            highlighted_cells.add((db_sheet_row, column_numbers[column]))
+            highlight_type = (
+                "whitespace"
+                if _whitespace_only_difference(excel_row[column], db_row[column])
+                else "mismatch"
+            )
+            highlighted_cells[(sheet_row, column_numbers[f"{column} (Excel)"])] = highlight_type
+            highlighted_cells[(sheet_row, column_numbers[f"{column} (Database)"])] = highlight_type
 
     return pd.DataFrame(rows, columns=columns), highlighted_cells
 
@@ -307,6 +336,15 @@ def _exact_equal(left: Any, right: Any) -> bool:
     if type(left) is not type(right):
         return False
     return bool(left == right)
+
+
+def _whitespace_only_difference(left: Any, right: Any) -> bool:
+    return (
+        isinstance(left, str)
+        and isinstance(right, str)
+        and left != right
+        and left.strip() == right.strip()
+    )
 
 
 def _normalize_key_value(value: Any) -> str:
