@@ -13,7 +13,7 @@ statutory_addressbook:
     contact id:
     - contact old id
     name: []
-    formal name: []
+    formal name title: []
     formal first name:
     - formal name first
     formal middle name:
@@ -65,7 +65,7 @@ statutory_addressbook:
                ELSE ''
            END 'type'
          , cs.name 'name'
-         , IFNULL(cs.formal_name_title, '') 'formal name'
+         , IFNULL(cs.formal_name_title, '') 'formal name title'
          , IFNULL(cs.formal_name_first, '') 'formal first name'
          , IFNULL(cs.formal_name_middle, '') 'formal middle name'
          , IFNULL(cs.formal_name_last, '') 'formal last name'

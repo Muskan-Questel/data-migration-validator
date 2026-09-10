@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+import unicodedata
 
 import pandas as pd
 from openpyxl.styles import PatternFill
@@ -350,7 +352,13 @@ def _whitespace_only_difference(left: Any, right: Any) -> bool:
 def _normalize_key_value(value: Any) -> str:
     if pd.isna(value):
         return ""
-    return " ".join(str(value).strip().split())
+    if isinstance(value, (datetime, date, pd.Timestamp)):
+        return value.date().isoformat() if isinstance(value, datetime) else value.isoformat()
+    normalized = unicodedata.normalize("NFKC", str(value))
+    normalized = normalized.translate(
+        str.maketrans("", "", "\u200b\u200c\u200d\ufeff")
+    )
+    return " ".join(normalized.split())
 
 
 def _rows_by_key(df: pd.DataFrame, key_columns: list[str]) -> dict[tuple[Any, ...], pd.Series]:
