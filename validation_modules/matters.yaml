@@ -98,6 +98,7 @@ matters:
       , m.mattercode 'mattercode'
       , m.oldcode 'old code'
       , u.username 'user'
+      , u2.username 'user2'
       , IFNULL(f.family, '') 'family'
       , m.country 'country'
       , IFNULL(m.shorttitle, '') 'shorttitle'
@@ -168,8 +169,8 @@ matters:
             END
         ),''
       ) 'associate'
-      , GROUP_CONCAT(DISTINCT cons.name) 'applicants'
-      , GROUP_CONCAT(DISTINCT cons1.name) 'inventors'
+      , GROUP_CONCAT(DISTINCT cons.name SEPARATOR '; ') 'applicants'
+      , GROUP_CONCAT(DISTINCT cons1.name SEPARATOR '; ') 'inventors'
       , m.extra3 'classes'
       , m.extra1 'goods'
       , IFNULL(pd_m.description, '') 'type of mark'
@@ -221,6 +222,8 @@ matters:
                        ON h206.orgid = :org_id AND h206.hid = 206 AND m.id = h206.matterid
              LEFT JOIN users u
                        ON u.orgid = :org_id AND u.id = m.user
+             LEFT JOIN users u2
+                       ON u2.orgid = :org_id AND u2.id = m.user2
              LEFT JOIN contacts_organisations cos
                        ON cos.orgid = :org_id AND cos.id = m.oid
              LEFT JOIN contacts_organisations cosr

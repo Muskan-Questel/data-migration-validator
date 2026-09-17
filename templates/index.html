@@ -85,6 +85,47 @@
       cursor: wait;
       opacity: 0.72;
     }
+    .selection-panel {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+    .selection-toolbar {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 10px 0;
+    }
+    .check-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+    .check-list label {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin: 0;
+      padding: 8px;
+      font-weight: 400;
+    }
+    .check-list label:hover {
+      background: #eef3f8;
+    }
+    .change-list label {
+      display: grid;
+      grid-template-columns: auto minmax(130px, 1fr) minmax(180px, 2fr) minmax(180px, 2fr);
+      gap: 10px;
+    }
+    .check-list input {
+      width: auto;
+    }
     .actions {
       margin-top: 18px;
       display: flex;
@@ -135,6 +176,45 @@
       margin-top: 12px;
       border-collapse: collapse;
       background: #ffffff;
+    }
+    .preview-window {
+      max-height: 420px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+    .preview-window table {
+      margin-top: 0;
+    }
+    .preview-window thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .preview-toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+    .preview-toolbar input,
+    .preview-toolbar select {
+      width: auto;
+      min-width: 180px;
+    }
+    .preview-count {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .action-update {
+      color: #176b3a;
+      font-weight: 700;
+    }
+    .action-skipped {
+      color: var(--danger);
+      font-weight: 700;
     }
     th, td {
       border: 1px solid var(--line);
@@ -226,6 +306,47 @@
             {% endfor %}
           </tbody>
         </table>
+        <h2>Prepare Selected Update SQL</h2>
+        <p>Select fields to update. Every yellow mismatch for the selected fields will be included; green whitespace and blue scientific warnings are excluded.</p>
+        <form action="/prepare-update-plan" method="post">
+          <input type="hidden" name="run_id" value="{{ result.run_id }}">
+          <div class="selection-panel">
+            <strong>Fields with yellow mismatches</strong>
+            <div class="selection-toolbar">
+              <button type="button" class="selection-button" data-target="field-selection" data-select="all">Select all fields</button>
+              <button type="button" class="selection-button" data-target="field-selection" data-select="none">Clear selection</button>
+            </div>
+            <div id="field-selection" class="check-list">
+              {% for field in result.update_fields %}
+                <label><input type="checkbox" name="fields" value="{{ field }}">{{ field }}</label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="actions"><button type="submit">Preview SQL Plan</button></div>
+        </form>
+      </section>
+    {% endif %}
+
+    {% if update_preview %}
+      <section class="result">
+        <h2>Selected Update Preview</h2>
+        <p>No database changes were executed.</p>
+        <div class="preview-toolbar">
+          <input id="preview-search" type="search" placeholder="Filter matter, field, or warning" aria-label="Filter preview">
+          <select id="preview-action" aria-label="Filter action">
+            <option value="all">All actions</option>
+            <option value="Update">Update only</option>
+            <option value="Skipped">Skipped only</option>
+          </select>
+          <span id="preview-count" class="preview-count"></span>
+        </div>
+        <div class="preview-window">
+          <table id="update-preview-table">
+            <thead><tr><th>Matter</th><th>Field</th><th>Action</th><th>Warning</th></tr></thead>
+            <tbody>{% for row in update_preview %}<tr data-action="{{ row.Action }}"><td>{{ row.Matter }}</td><td>{{ row.Field }}</td><td class="action-{{ row.Action|lower }}">{{ row.Action }}</td><td>{{ row.Warning }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+        <div class="actions"><a class="button" href="/download/{{ update_run_id }}/{{ update_sql_name }}">Download SQL Plan</a></div>
       </section>
     {% endif %}
   </main>
@@ -241,6 +362,40 @@
       submitButton.disabled = true;
       submitButton.textContent = 'Validating...';
     });
+
+    document.querySelectorAll('.selection-button').forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = document.getElementById(button.dataset.target);
+        target.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+          checkbox.checked = button.dataset.select === 'all';
+        });
+      });
+    });
+
+    const previewSearch = document.getElementById('preview-search');
+    const previewAction = document.getElementById('preview-action');
+    const previewCount = document.getElementById('preview-count');
+    const previewRows = Array.from(document.querySelectorAll('#update-preview-table tbody tr'));
+
+    function filterPreview() {
+      if (!previewCount) return;
+      const query = previewSearch.value.toLowerCase().trim();
+      const action = previewAction.value;
+      let visible = 0;
+      previewRows.forEach((row) => {
+        const matchesText = row.textContent.toLowerCase().includes(query);
+        const matchesAction = action === 'all' || row.dataset.action === action;
+        row.hidden = !(matchesText && matchesAction);
+        if (!row.hidden) visible += 1;
+      });
+      previewCount.textContent = `${visible} of ${previewRows.length} rows`;
+    }
+
+    if (previewSearch) {
+      previewSearch.addEventListener('input', filterPreview);
+      previewAction.addEventListener('change', filterPreview);
+      filterPreview();
+    }
   </script>
 </body>
 </html>
