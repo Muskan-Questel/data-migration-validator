@@ -49,6 +49,7 @@ from app.update_sql import (
     plan_client_update,
     plan_lookup_matter_update,
     plan_custom_field_update,
+    plan_associate_reference_updates,
     plan_site_update,
     plan_party_relationships,
 )
@@ -274,7 +275,7 @@ async def prepare_update_plan(
             REGIONS[context["region_id"]],
             org_id,
         )
-    if "who pays the bill" in selected_fields:
+    if {"who pays the bill", "associate reference"} & selected_fields:
         site_values = execute_site_queries(
             REGIONS[context["region_id"]],
             org_id,
@@ -286,7 +287,8 @@ async def prepare_update_plan(
     if selected_fields & lookup_fields:
         lookup_values = execute_update_lookup_queries(REGIONS[context["region_id"]], org_id)
     selected_party_fields = selected_fields & {
-        "applicant", "applicants", "inventor", "inventors", "associate", "associates"
+        "applicant", "applicants", "inventor", "inventors", "associate", "associates",
+        "associate reference",
     }
     if selected_party_fields:
         matter_ids = [
@@ -299,7 +301,7 @@ async def prepare_update_plan(
                 org_id,
                 matter_ids,
             )
-        if selected_party_fields & {"associate", "associates"}:
+        if selected_party_fields & {"associate", "associates", "associate reference"}:
             associate_values = execute_associate_queries(
                 REGIONS[context["region_id"]],
                 org_id,
@@ -329,6 +331,68 @@ async def prepare_update_plan(
         db_field = option.get("db_column", db_field_by_selected_field.get(field, field))
         if excel_field not in excel_df.columns or db_field not in db_df.columns:
             rows.append({"Matter": matter_code, "Field": field, "Excel Value": option["excel_value"], "Database Value": option["db_value"], "Action": "Skipped", "Warning": "Field is unavailable in the DB extract."})
+            continue
+        if field.lower() == "associate reference":
+            associate_field = next(
+                (
+                    column
+                    for column in excel_df.columns
+                    if "".join(character.lower() for character in str(column) if character.isalnum()).startswith("associate")
+                    and "reference" not in "".join(character.lower() for character in str(column) if character.isalnum())
+                ),
+                None,
+            )
+            if associate_field is None:
+                rows.append({
+                    "Matter": matter_code,
+                    "Field": field,
+                    "Excel Value": option["excel_value"],
+                    "Database Value": option["db_value"],
+                    "Action": "Skipped",
+                    "Warning": "Associate column is required to identify the relationship row.",
+                })
+                continue
+            current_rows = [
+                (str(row.name), int(row.cid), row.reference)
+                for row in associate_values[
+                    (associate_values["matterid"] == int(matter_id))
+                    & (associate_values["category"].str.lower() == "associate")
+                ].itertuples(index=False)
+                if pd.notna(row.cid)
+            ]
+            excel_names = [
+                value.strip()
+                for value in str(excel_row[associate_field]).split(";")
+                if value.strip()
+            ]
+            excel_references = [
+                value.strip()
+                for value in str(excel_row[excel_field]).split(";")
+            ]
+            site_ids_by_name = {
+                str(row.sitename).strip().casefold(): int(row.id)
+                for row in site_values.itertuples(index=False)
+                if pd.notna(row.sitename) and pd.notna(row.id)
+            }
+            reference_plan_rows = plan_associate_reference_updates(
+                org_id,
+                int(matter_id),
+                matter_code,
+                current_rows,
+                excel_names,
+                excel_references,
+                site_ids_by_name,
+            )
+            plan_rows.extend(reference_plan_rows)
+            for reference_plan_row in reference_plan_rows:
+                rows.append({
+                    "Matter": matter_code,
+                    "Field": field,
+                    "Excel Value": option["excel_value"],
+                    "Database Value": option["db_value"],
+                    "Action": reference_plan_row.action,
+                    "Warning": reference_plan_row.warning or "Ready to generate SQL.",
+                })
             continue
         if field.lower() in {
             "applicant", "applicants", "inventor", "inventors", "associate", "associates"

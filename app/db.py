@@ -137,8 +137,8 @@ def execute_associate_queries(
         return pd.DataFrame()
     query = text(
         """
-          SELECT mc.matterid, mc.sid AS cid, mc.category,
-               cs.id AS contact_id, cs.sitename AS name
+        SELECT mc.matterid, mc.sid AS cid, mc.category, mc.reference,
+            cs.id AS contact_id, cs.sitename AS name
         FROM myprompts_contacts mc
         INNER JOIN contacts_sites cs
             ON cs.orgid = mc.orgid

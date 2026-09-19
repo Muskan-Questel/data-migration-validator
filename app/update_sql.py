@@ -7,6 +7,8 @@ import unicodedata
 
 
 DIRECT_MATTER_COLUMNS = {
+    "old code": "oldcode",
+    "expiry date": "expirydate",
     "shorttitle": "shorttitle",
     "longtitle": "longtitle",
     "country": "country",
@@ -319,6 +321,90 @@ def plan_party_relationships(
             )
         )
     return rows
+
+
+def plan_associate_reference_updates(
+    org_id: int,
+    matter_id: int,
+    matter_code: str,
+    current_rows: list[tuple[str, int, Any]],
+    excel_names: list[str],
+    excel_references: list[str],
+    site_ids_by_name: dict[str, int],
+) -> list[UpdatePlanRow]:
+    current_by_name = {
+        _name_key(name): (int(site_id), reference)
+        for name, site_id, reference in current_rows
+    }
+    rows: list[UpdatePlanRow] = []
+    for index, name in enumerate(excel_names):
+        name_key = _name_key(name)
+        reference = excel_references[index] if index < len(excel_references) else ""
+        site_id = site_ids_by_name.get(name_key)
+        if site_id is None:
+            rows.append(
+                _warning_row(
+                    matter_id,
+                    matter_code,
+                    "associate reference",
+                    "",
+                    reference,
+                    f"Associate site {name!r} not found in contacts_sites; reference update skipped.",
+                )
+            )
+            continue
+        current = current_by_name.get(name_key)
+        if current is None:
+            rows.append(
+                _warning_row(
+                    matter_id,
+                    matter_code,
+                    "associate reference",
+                    "",
+                    reference,
+                    f"Associate relationship for {name!r} was not found; reference update skipped.",
+                )
+            )
+            continue
+        current_site_id, current_reference = current
+        if _formatting_only_reference_difference(current_reference, reference):
+            continue
+        sql = (
+            "UPDATE myprompts_contacts\n"
+            f"SET reference = {_sql_value(reference)}\n"
+            f"WHERE orgid = {int(org_id)} AND matterid = {int(matter_id)}\n"
+            f"  AND category = 'associate' AND sid = {int(current_site_id)};"
+        )
+        rows.append(
+            _update_row(
+                matter_id,
+                matter_code,
+                "associate reference",
+                current_reference,
+                reference,
+                sql,
+                "Update associate reference",
+            )
+        )
+    return rows or [
+        _warning_row(
+            matter_id,
+            matter_code,
+            "associate reference",
+            "",
+            "",
+            "No genuine associate reference change required.",
+        )
+    ]
+
+
+def _formatting_only_reference_difference(left: Any, right: Any) -> bool:
+    return (
+        isinstance(left, str)
+        and isinstance(right, str)
+        and left != right
+        and left.strip().casefold() == right.strip().casefold()
+    )
 
 
 def _update_row(
