@@ -235,7 +235,7 @@
 <body>
   <main>
     <h1>Migration Lens</h1>
-    <p>Upload the source Excel file, choose a region and module, and generate the DB extract plus discrepancy report.</p>
+    <p>Upload the source Excel/CSV file, choose a region and module, and generate the DB extract plus discrepancy report.</p>
 
     <form id="validation-form" action="/validate" method="post" enctype="multipart/form-data">
       <div class="grid">
@@ -306,24 +306,26 @@
             {% endfor %}
           </tbody>
         </table>
-        <h2>Prepare Selected Update SQL</h2>
-        <p>Select fields to update. Every yellow mismatch for the selected fields will be included; green whitespace and blue scientific warnings are excluded.</p>
-        <form action="/prepare-update-plan" method="post">
-          <input type="hidden" name="run_id" value="{{ result.run_id }}">
-          <div class="selection-panel">
-            <strong>Fields with yellow mismatches</strong>
-            <div class="selection-toolbar">
-              <button type="button" class="selection-button" data-target="field-selection" data-select="all">Select all fields</button>
-              <button type="button" class="selection-button" data-target="field-selection" data-select="none">Clear selection</button>
+        {% if result.module_id == "matters" %}
+          <h2>Prepare Selected Update SQL</h2>
+          <p>Select fields to update. Every yellow mismatch for the selected fields will be included; green whitespace and blue scientific warnings are excluded.</p>
+          <form action="/prepare-update-plan" method="post">
+            <input type="hidden" name="run_id" value="{{ result.run_id }}">
+            <div class="selection-panel">
+              <strong>Fields with yellow mismatches</strong>
+              <div class="selection-toolbar">
+                <button type="button" class="selection-button" data-target="field-selection" data-select="all">Select all fields</button>
+                <button type="button" class="selection-button" data-target="field-selection" data-select="none">Clear selection</button>
+              </div>
+              <div id="field-selection" class="check-list">
+                {% for field in result.update_fields %}
+                  <label><input type="checkbox" name="fields" value="{{ field }}">{{ field }}</label>
+                {% endfor %}
+              </div>
             </div>
-            <div id="field-selection" class="check-list">
-              {% for field in result.update_fields %}
-                <label><input type="checkbox" name="fields" value="{{ field }}">{{ field }}</label>
-              {% endfor %}
-            </div>
-          </div>
-          <div class="actions"><button type="submit">Preview SQL Plan</button></div>
-        </form>
+            <div class="actions"><button type="submit">Preview SQL Plan</button></div>
+          </form>
+        {% endif %}
       </section>
     {% endif %}
 

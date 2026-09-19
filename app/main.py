@@ -203,6 +203,7 @@ async def validate(
             "error": None,
             "result": {
                 "run_id": run_id,
+                "module_id": module.identifier,
                 "region_name": region.name,
                 "summary": comparison.summary,
                 "summary_rows": comparison.summary_rows,

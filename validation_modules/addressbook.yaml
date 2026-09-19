@@ -93,8 +93,9 @@ addressbook:
              LEFT JOIN (
                  SELECT oid,
                         GROUP_CONCAT(CASE categoryid
-                                         WHEN 1 THEN 'Owner'
-                                     END SEPARATOR ', ') cats
+                                          WHEN 1 THEN 'Client'
+                                          WHEN 2 THEN 'Foreign Associate'
+                                          END SEPARATOR ', ') cats
                  FROM contacts_organisations_categories
                  WHERE orgid = :org_id
                  GROUP BY oid
