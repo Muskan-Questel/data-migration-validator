@@ -222,8 +222,13 @@ def plan_party_relationships(
     current_names: list[str],
     excel_names: list[str],
     existing_contact_ids: dict[str, int],
+    relationship_column: str = "cid",
 ) -> list[UpdatePlanRow]:
-    category = {"applicants": "applicant", "inventors": "inventor"}.get(field.lower())
+    category = {
+        "applicants": "applicant",
+        "inventors": "inventor",
+        "associates": "associate",
+    }.get(field.lower())
     if category is None:
         return [_warning_row(matter_id, matter_code, field, current_names, excel_names, "Unsupported party field.")]
     current_by_key = {_name_key(name): name for name in current_names if name.strip()}
@@ -258,30 +263,50 @@ def plan_party_relationships(
             continue
         sql = (
             "UPDATE myprompts_contacts\n"
-            f"SET cid = {int(new_contact_id)}\n"
+            f"SET {relationship_column} = {int(new_contact_id)}\n"
             f"WHERE orgid = {int(org_id)} AND matterid = {int(matter_id)}\n"
-            f"  AND category = {_sql_value(category)} AND cid = {int(old_contact_id)};"
+            f"  AND category = {_sql_value(category)} AND {relationship_column} = {int(old_contact_id)};"
         )
         rows.append(_update_row(matter_id, matter_code, field, current_names, excel_names, sql, "Update relationship cid only"))
     for new_key in added_keys[len(removed_keys):]:
         new_contact_id = contact_ids_by_key.get(new_key)
         if new_contact_id is not None:
+            relationship_columns = "cid" if relationship_column == "cid" else "sid"
             sql = (
-                "INSERT INTO myprompts_contacts (orgid, matterid, cid, category, sequence)\n"
+                f"INSERT INTO myprompts_contacts (orgid, matterid, {relationship_columns}, category, sequence)\n"
                 f"VALUES ({int(org_id)}, {int(matter_id)}, {int(new_contact_id)}, {_sql_value(category)}, 0);"
             )
             rows.append(_update_row(matter_id, matter_code, field, current_names, excel_names, sql, "Add relationship row"))
     for old_key in removed_keys[len(added_keys):]:
-        rows.append(
-            _warning_row(
-                matter_id,
-                matter_code,
-                field,
-                current_names,
-                excel_names,
-                "Existing relationship retained; no replacement Excel contact was available.",
+        old_contact_id = contact_ids_by_key.get(old_key)
+        if category == "associate" and old_contact_id is not None:
+            sql = (
+                "DELETE FROM myprompts_contacts\n"
+                f"WHERE orgid = {int(org_id)} AND matterid = {int(matter_id)}\n"
+                f"  AND category = {_sql_value(category)} AND {relationship_column} = {int(old_contact_id)};"
             )
-        )
+            rows.append(
+                _update_row(
+                    matter_id,
+                    matter_code,
+                    field,
+                    current_names,
+                    excel_names,
+                    sql,
+                    "Remove relationship row",
+                )
+            )
+        else:
+            rows.append(
+                _warning_row(
+                    matter_id,
+                    matter_code,
+                    field,
+                    current_names,
+                    excel_names,
+                    "Existing relationship retained; no replacement Excel contact was available.",
+                )
+            )
     if not rows:
         rows.append(
             _warning_row(
