@@ -12,7 +12,13 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
-from app.comparison import _comparison_equal, _formatting_only_difference, compare_dataframes, write_report
+from app.comparison import (
+    _comparison_equal,
+    _formatting_only_difference,
+    _mapped_value_difference,
+    compare_dataframes,
+    write_report,
+)
 from app.config import load_modules, load_regions
 from app.custom_fields import (
     add_custom_field_values,

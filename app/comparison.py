@@ -454,6 +454,8 @@ def _exact_equal(left: Any, right: Any) -> bool:
 def _comparison_equal(left: Any, right: Any, column: str) -> bool:
     if _is_party_column(column):
         return _party_values_equal(left, right)
+    if _mapped_value_difference(left, right, column):
+        return True
     if _exact_equal(left, right):
         return True
     left_number = _numeric_value(left)
@@ -529,6 +531,36 @@ def _formatting_only_difference(left: Any, right: Any) -> bool:
         and left != right
         and left.strip().casefold() == right.strip().casefold()
     )
+
+
+_ACCEPTED_VALUE_MAPPINGS = {
+    "organisationcategory": {
+        "client": "client",
+        "associate": "foreign associate",
+        "agent": "foreign associate",
+        "other side client": "other side client",
+        "otherside client": "other side client",
+        "otherside associate": "other side solicitor",
+        "other side associate": "other side solicitor",
+        "otherside solicitor": "other side solicitor",
+        "other side solicitor": "other side solicitor",
+        "other associate": "other associate",
+    },
+}
+
+
+def _mapped_value_difference(left: Any, right: Any, column: str) -> bool:
+    mappings = {
+        _normalize_header(key): _normalize_header(value)
+        for key, value in _ACCEPTED_VALUE_MAPPINGS.get(
+            _normalize_header(column), {}
+        ).items()
+    }
+    if not mappings or not isinstance(left, str) or not isinstance(right, str):
+        return False
+    left_value = _normalize_header(left)
+    right_value = _normalize_header(right)
+    return mappings.get(left_value) == right_value or mappings.get(right_value) == left_value
 
 
 def _normalize_key_value(value: Any) -> str:
