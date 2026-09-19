@@ -54,7 +54,7 @@ RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
 MODULES = load_modules(BASE_DIR / "validation_config.yaml")
 REGIONS = load_regions(BASE_DIR / "db_regions.yaml")
 
-app = FastAPI(title="Migration Data Comparison Tool")
+app = FastAPI(title="Migration Lens")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.cache = None
 

@@ -107,8 +107,6 @@ def compare_dataframes(
         else 0,
         "extra_records_in_database": len(extra_in_database),
         "extra_records_in_excel": len(extra_in_excel),
-        "duplicate_excel_rows": int(excel_dup_mask.sum()),
-        "duplicate_db_rows": int(db_dup_mask.sum()),
         "missing_db_columns": len(missing_db_columns),
         "scientific_number_warnings": len(scientific_warnings),
     }
@@ -126,8 +124,8 @@ def compare_dataframes(
             "Summary": summary_sheet,
             "Column_Mapping": column_mapping_sheet,
             "Mismatched_Records": mismatched_records,
-            "Extra_In_Database": extra_in_database,
-            "Extra_In_Excel": extra_in_excel,
+            "Only in Database": extra_in_database,
+            "Only in Excel": extra_in_excel,
             "Scientific_Number_Warnings": scientific_warnings,
         },
         summary=summary,
@@ -563,8 +561,6 @@ def _summary_rows(summary: dict[str, Any], subject: str) -> list[dict[str, Any]]
         "mismatched_records": f"Mismatched {subject}",
         "extra_records_in_database": f"Extra {subject} In Database",
         "extra_records_in_excel": f"Extra {subject} In Excel",
-        "duplicate_excel_rows": f"Duplicate {subject} In Excel",
-        "duplicate_db_rows": f"Duplicate {subject} In Database",
         "missing_db_columns": "Missing DB Columns",
     }
     return [

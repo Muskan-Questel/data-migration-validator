@@ -185,7 +185,7 @@ matters:
                        ON pds.orgid = :org_id
                       AND pds.type = CASE
                                          WHEN m.category = 11 THEN 'MATTER_SUBCATEGORIES_TM'
-                                         ELSE CONCAT('MATTER_SUBCATEGORIES_', pdc.special)
+                                         ELSE CONCAT('MATTER_SUBCATEGORIES_', pdc.description)
                                      END
                       AND m.subcategory = pds.oldid
              LEFT JOIN preferences_dropdown pd_t
