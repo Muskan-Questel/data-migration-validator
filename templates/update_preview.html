@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQL Plan Preview | Migration Lens</title>
+  <style>
+    :root { color-scheme: light; --ink: #17202a; --muted: #5f6b7a; --line: #d9dee7; --panel: #f7f9fc; --accent: #176b87; --accent-dark: #124e63; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: var(--ink); background: #fff; }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 48px; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    h2 { margin-top: 28px; }
+    p { color: var(--muted); }
+    .context, .preview { border: 1px solid var(--line); border-radius: 8px; padding: 20px; background: var(--panel); }
+    .context p { margin: 6px 0; }
+    .actions, .preview-toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border-radius: 6px; padding: 0 14px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; text-decoration: none; }
+    .button:hover { background: var(--accent-dark); }
+    .button.secondary { background: #e8eef4; color: var(--ink); }
+    input, select { box-sizing: border-box; min-height: 40px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: #fff; color: var(--ink); font-size: 15px; }
+    input { flex: 1 1 280px; }
+    .preview-count { color: var(--muted); font-size: 14px; }
+    .preview-window { margin-top: 18px; overflow: auto; max-height: 540px; border: 1px solid var(--line); background: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { position: sticky; top: 0; background: #eef3f8; }
+    .action-update { color: #1d6f42; font-weight: 700; }
+    .action-skipped { color: #925d0a; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Selected Update Preview</h1>
+    <p>No database changes have been executed.</p>
+
+    <section class="context">
+      <p><strong>Region:</strong> {{ region_name }}</p>
+      <p><strong>Selected fields:</strong> {{ selected_fields | join(', ') }}</p>
+      <div class="actions">
+        <a class="button" href="/download/{{ run_id }}/{{ sql_name }}">Download SQL Plan</a>
+        <a class="button" href="/download/{{ run_id }}/{{ report_name }}">Download Comparison Report</a>
+        <a class="button secondary" href="/">Back to Validation</a>
+      </div>
+    </section>
+
+    <section class="preview">
+      <h2>Planned changes</h2>
+      <div class="preview-toolbar">
+        <input id="preview-search" type="search" placeholder="Filter matter, field, or warning" aria-label="Filter preview">
+        <select id="preview-action" aria-label="Filter action">
+          <option value="all">All actions</option>
+          <option value="Update">Update only</option>
+          <option value="Skipped">Skipped only</option>
+        </select>
+        <span id="preview-count" class="preview-count"></span>
+      </div>
+      <div class="preview-window">
+        <table id="update-preview-table">
+          <thead><tr><th>Matter</th><th>Field</th><th>Action</th><th>Warning</th></tr></thead>
+          <tbody>{% for row in update_preview %}<tr data-action="{{ row.Action }}"><td>{{ row.Matter }}</td><td>{{ row.Field }}</td><td class="action-{{ row.Action|lower }}">{{ row.Action }}</td><td>{{ row.Warning }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    const previewSearch = document.getElementById('preview-search');
+    const previewAction = document.getElementById('preview-action');
+    const previewCount = document.getElementById('preview-count');
+    const previewRows = Array.from(document.querySelectorAll('#update-preview-table tbody tr'));
+
+    function filterPreview() {
+      const query = previewSearch.value.toLowerCase().trim();
+      const action = previewAction.value;
+      let visible = 0;
+      previewRows.forEach((row) => {
+        const matchesText = row.textContent.toLowerCase().includes(query);
+        const matchesAction = action === 'all' || row.dataset.action === action;
+        row.hidden = !(matchesText && matchesAction);
+        if (!row.hidden) visible += 1;
+      });
+      previewCount.textContent = `${visible} of ${previewRows.length} rows`;
+    }
+
+    previewSearch.addEventListener('input', filterPreview);
+    previewAction.addEventListener('change', filterPreview);
+    filterPreview();
+  </script>
+</body>
+</html>

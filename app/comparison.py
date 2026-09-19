@@ -107,6 +107,8 @@ def compare_dataframes(
         else 0,
         "extra_records_in_database": len(extra_in_database),
         "extra_records_in_excel": len(extra_in_excel),
+        "duplicate_excel_rows": int(excel_dup_mask.sum()),
+        "duplicate_db_rows": int(db_dup_mask.sum()),
         "missing_db_columns": len(missing_db_columns),
         "scientific_number_warnings": len(scientific_warnings),
     }
@@ -554,14 +556,17 @@ def _label(value: str) -> str:
 def _summary_rows(summary: dict[str, Any], subject: str) -> list[dict[str, Any]]:
     subject = subject.strip() or "Records"
     metric_labels = {
-        "excel_rows": f"{subject} In Excel",
-        "db_rows": f"{subject} In Database",
-        "compared_columns": "Compared Columns",
-        "matched_rows": f"Matched {subject}",
-        "mismatched_records": f"Mismatched {subject}",
-        "extra_records_in_database": f"Extra {subject} In Database",
-        "extra_records_in_excel": f"Extra {subject} In Excel",
-        "missing_db_columns": "Missing DB Columns",
+        "excel_rows": f"{subject} in Excel",
+        "db_rows": f"{subject} in Database",
+        "compared_columns": "Fields Compared",
+        "matched_rows": f"{subject} Matched by Identifier",
+        "mismatched_records": f"{subject} with Data Differences",
+        "extra_records_in_database": f"{subject} Only in Database",
+        "extra_records_in_excel": f"{subject} Only in Excel",
+        "duplicate_excel_rows": f"Duplicate {subject} in Excel",
+        "duplicate_db_rows": f"Duplicate {subject} in Database",
+        "missing_db_columns": "Excel Columns Missing in Database",
+        "scientific_number_warnings": "Scientific-Notation Warnings",
     }
     return [
         {"Metric": metric_labels.get(key, _label(key)), "Value": value}

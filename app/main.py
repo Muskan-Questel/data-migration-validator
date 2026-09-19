@@ -521,16 +521,19 @@ async def prepare_update_plan(
     plan = UpdatePlan(plan_rows)
     sql_path = RUNS_DIR / run_id / "selected_update_plan.sql"
     sql_path.write_text(plan.sql, encoding="utf-8")
+    report_path = next((RUNS_DIR / run_id).glob("*_comparison_report.xlsx"), None)
+    if report_path is None:
+        raise HTTPException(status_code=404, detail="Comparison report not found")
     return templates.TemplateResponse(
         request,
-        "index.html",
+        "update_preview.html",
         {
-            "modules": MODULES,
-            "regions": REGIONS,
-            "error": None,
             "update_preview": rows,
-            "update_sql_name": sql_path.name,
-            "update_run_id": run_id,
+            "run_id": run_id,
+            "region_name": REGIONS[context["region_id"]].name,
+            "selected_fields": sorted(selected_fields),
+            "sql_name": sql_path.name,
+            "report_name": report_path.name,
         },
     )
 
