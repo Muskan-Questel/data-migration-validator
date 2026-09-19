@@ -221,7 +221,10 @@ def _mismatched_records(
             column
             for column in compare_columns
             if column not in key_columns
-            and not _comparison_equal(excel_row[column], db_row[column], column)
+            and (
+                not _comparison_equal(excel_row[column], db_row[column], column)
+                or _formatting_only_difference(excel_row[column], db_row[column])
+            )
         ]
         if mismatched_columns:
             mismatch_rows.append((excel_row, db_row, mismatched_columns))
@@ -267,7 +270,7 @@ def _mismatched_records(
         for column in mismatched_columns:
             highlight_type = (
                 "whitespace"
-                if _whitespace_only_difference(excel_row[column], db_row[column])
+                if _formatting_only_difference(excel_row[column], db_row[column])
                 else "mismatch"
             )
             highlighted_cells[(sheet_row, column_numbers[f"{column} (Excel)"])] = highlight_type
@@ -441,7 +444,7 @@ def _exact_equal(left: Any, right: Any) -> bool:
         return True
 
     if isinstance(left, str) and isinstance(right, str):
-        return left == right
+        return left.casefold() == right.casefold()
 
     if type(left) is not type(right):
         return False
@@ -469,8 +472,6 @@ def _normalize_party_columns(df: pd.DataFrame) -> pd.DataFrame:
 def _is_party_column(column: str) -> bool:
     normalized = _normalize_header(column)
     return normalized in {"applicant", "applicants", "inventor", "inventors"}
-
-
 def _semicolon_list(value: Any) -> Any:
     if _is_blank(value) or pd.isna(value):
         return ""
@@ -503,7 +504,11 @@ def _numeric_value(value: Any) -> float | None:
 
 
 def _is_blank(value: Any) -> bool:
-    return value is None or (isinstance(value, str) and not value.strip())
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return True
+    if not pd.api.types.is_scalar(value):
+        return False
+    return bool(pd.isna(value))
 
 
 def _whitespace_only_difference(left: Any, right: Any) -> bool:
@@ -512,6 +517,15 @@ def _whitespace_only_difference(left: Any, right: Any) -> bool:
         and isinstance(right, str)
         and left != right
         and left.strip() == right.strip()
+    )
+
+
+def _formatting_only_difference(left: Any, right: Any) -> bool:
+    return (
+        isinstance(left, str)
+        and isinstance(right, str)
+        and left != right
+        and left.strip().casefold() == right.strip().casefold()
     )
 
 

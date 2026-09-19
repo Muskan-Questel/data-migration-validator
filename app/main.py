@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
-from app.comparison import _comparison_equal, compare_dataframes, write_report
+from app.comparison import _comparison_equal, _formatting_only_difference, compare_dataframes, write_report
 from app.config import load_modules, load_regions
 from app.custom_fields import (
     add_custom_field_values,
@@ -563,7 +563,7 @@ def _mismatch_options(
             field = _update_field_name(report_field)
             database_value = row[f"{report_field} (Database)"]
             excel_value = row[column]
-            if _whitespace_only_update_difference(excel_value, database_value):
+            if _formatting_only_difference(excel_value, database_value):
                 continue
             options.append({
                 "id": f"change-{option_number}",
@@ -586,7 +586,7 @@ def _mismatch_fields(
             continue
         field = column.removesuffix(" (Excel)")
         if any(
-            not _whitespace_only_update_difference(
+            not _formatting_only_difference(
                 row[column], row[f"{field} (Database)"]
             )
             for _, row in mismatch_records.iterrows()
@@ -629,7 +629,7 @@ def _selected_field_options(
             db_value = db_row[db_field]
             if _comparison_equal(excel_value, db_value, field):
                 continue
-            if _whitespace_only_update_difference(excel_value, db_value):
+            if _formatting_only_difference(excel_value, db_value):
                 continue
             options.append({
                 "id": f"selected-{option_number}",
