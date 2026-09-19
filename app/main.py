@@ -21,6 +21,7 @@ from app.custom_fields import (
 )
 from app.db import (
     execute_custom_field_queries,
+    execute_associate_queries,
     execute_history_queries,
     execute_module_query,
     execute_organisation_queries,
@@ -257,6 +258,7 @@ async def prepare_update_plan(
     }
     key_column = context["key_columns"][0]
     party_values = pd.DataFrame()
+    associate_values = pd.DataFrame()
     organisation_values = pd.DataFrame()
     site_values = pd.DataFrame()
     lookup_values = {}
@@ -276,17 +278,26 @@ async def prepare_update_plan(
     }
     if selected_fields & lookup_fields:
         lookup_values = execute_update_lookup_queries(REGIONS[context["region_id"]], org_id)
-    selected_party_fields = selected_fields & {"applicant", "applicants", "inventor", "inventors"}
+    selected_party_fields = selected_fields & {
+        "applicant", "applicants", "inventor", "inventors", "associate", "associates"
+    }
     if selected_party_fields:
         matter_ids = [
             int(value)
             for value in db_df["Case ID"].dropna().tolist()
         ]
-        party_values = execute_party_queries(
-            REGIONS[context["region_id"]],
-            org_id,
-            matter_ids,
-        )
+        if selected_party_fields & {"applicant", "applicants", "inventor", "inventors"}:
+            party_values = execute_party_queries(
+                REGIONS[context["region_id"]],
+                org_id,
+                matter_ids,
+            )
+        if selected_party_fields & {"associate", "associates"}:
+            associate_values = execute_associate_queries(
+                REGIONS[context["region_id"]],
+                org_id,
+                matter_ids,
+            )
     db_by_code = db_df.set_index(key_column, drop=False)
     selected_options = _selected_field_options(
         excel_df,
@@ -312,11 +323,20 @@ async def prepare_update_plan(
         if excel_field not in excel_df.columns or db_field not in db_df.columns:
             rows.append({"Matter": matter_code, "Field": field, "Excel Value": option["excel_value"], "Database Value": option["db_value"], "Action": "Skipped", "Warning": "Field is unavailable in the DB extract."})
             continue
-        if field.lower() in {"applicant", "applicants", "inventor", "inventors"}:
-            category = "applicant" if field.lower().startswith("applicant") else "inventor"
-            party_rows = party_values[
-                (party_values["matterid"] == int(matter_id))
-                & (party_values["category"].str.lower() == category)
+        if field.lower() in {
+            "applicant", "applicants", "inventor", "inventors", "associate", "associates"
+        }:
+            category = (
+                "applicant"
+                if field.lower().startswith("applicant")
+                else "inventor"
+                if field.lower().startswith("inventor")
+                else "associate"
+            )
+            relationship_values = associate_values if category == "associate" else party_values
+            party_rows = relationship_values[
+                (relationship_values["matterid"] == int(matter_id))
+                & (relationship_values["category"].str.lower() == category)
             ]
             current_names = [str(value) for value in party_rows["name"].tolist()]
             excel_names = [
@@ -331,17 +351,22 @@ async def prepare_update_plan(
             }
             contact_ids.update({
                 str(row.name).strip().casefold(): int(row.contact_id)
-                for row in party_values.itertuples(index=False)
+                for row in relationship_values.itertuples(index=False)
                 if pd.notna(row.name) and pd.notna(row.contact_id)
             })
             party_plan_rows = plan_party_relationships(
                 org_id,
                 int(matter_id),
                 matter_code,
-                "applicants" if category == "applicant" else "inventors",
+                "applicants"
+                if category == "applicant"
+                else "inventors"
+                if category == "inventor"
+                else "associates",
                 current_names,
                 excel_names,
                 contact_ids,
+                relationship_column="sid" if category == "associate" else "cid",
             )
             plan_rows.extend(party_plan_rows)
             for party_plan_row in party_plan_rows:
@@ -659,6 +684,8 @@ def _update_field_name(field: str) -> str:
         return "applicants"
     if normalized in {"inventor", "inventors"}:
         return "inventors"
+    if normalized in {"associate", "associates"}:
+        return "associates"
     return str(field).strip()
 
 

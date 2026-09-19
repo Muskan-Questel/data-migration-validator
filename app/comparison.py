@@ -469,7 +469,9 @@ def _normalize_party_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def _is_party_column(column: str) -> bool:
     normalized = _normalize_header(column)
-    return normalized in {"applicant", "applicants", "inventor", "inventors"}
+    return normalized in {
+        "applicant", "applicants", "inventor", "inventors", "associate", "associates"
+    }
 def _semicolon_list(value: Any) -> Any:
     if _is_blank(value) or pd.isna(value):
         return ""

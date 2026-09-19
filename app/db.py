@@ -128,6 +128,37 @@ def execute_party_queries(
             )
 
 
+def execute_associate_queries(
+    region: RegionConfig,
+    org_id: int,
+    matter_ids: list[int],
+) -> pd.DataFrame:
+    if not matter_ids:
+        return pd.DataFrame()
+    query = text(
+        """
+          SELECT mc.matterid, mc.sid AS cid, mc.category,
+               cs.id AS contact_id, cs.sitename AS name
+        FROM myprompts_contacts mc
+        INNER JOIN contacts_sites cs
+            ON cs.orgid = mc.orgid
+              AND cs.id = mc.sid
+        WHERE mc.orgid = :org_id
+          AND mc.matterid IN :matter_ids
+          AND LOWER(mc.category) = 'associate'
+        """
+    ).bindparams(bindparam("matter_ids", expanding=True))
+    load_dotenv()
+    with _mysql_endpoint(region) as endpoint:
+        engine = create_engine(_mysql_url(region, endpoint.host, endpoint.port))
+        with engine.connect() as connection:
+            return pd.read_sql_query(
+                query,
+                connection,
+                params={"org_id": org_id, "matter_ids": matter_ids},
+            )
+
+
 def execute_organisation_queries(
     region: RegionConfig,
     org_id: int,
