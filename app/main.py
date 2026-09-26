@@ -128,7 +128,14 @@ async def validate(
         if custom_headers:
             field_ids = [int(column.removeprefix("cf_")) for column in custom_headers.values()]
             custom_metadata, custom_values, custom_options = execute_custom_field_queries(region, org_id, field_ids)
-            db_df = add_custom_field_values(excel_df, db_df, custom_metadata, custom_values, custom_options)
+            db_df = add_custom_field_values(
+                excel_df,
+                db_df,
+                custom_metadata,
+                custom_values,
+                custom_options,
+                module.identifier,
+            )
             comparison_aliases.update(custom_field_column_aliases(list(excel_df.columns), custom_metadata))
         if module.identifier == "matters":
             history_headers_found = history_headers(list(excel_df.columns))

@@ -161,14 +161,7 @@ matters:
       , cs.sitename 'who pays the bill'
       , cosr.organisation 'renewal client'
       , csr.sitename 'renewal billing'
-      ,IFNULL(GROUP_CONCAT(
-            DISTINCT CASE
-                WHEN mc_asso.reference <> ''
-                THEN CONCAT(s_asso.sitename, '(', mc_asso.reference, ')')
-                ELSE s_asso.sitename
-            END
-        ),''
-      ) 'associate'
+        ,IFNULL(GROUP_CONCAT(DISTINCT s_asso.sitename SEPARATOR '; '),'') 'associate'
       , GROUP_CONCAT(DISTINCT cons.name SEPARATOR '; ') 'applicants'
       , GROUP_CONCAT(DISTINCT cons1.name SEPARATOR '; ') 'inventors'
       , m.extra3 'classes'

@@ -30,6 +30,7 @@ def add_custom_field_values(
     metadata: pd.DataFrame,
     values: pd.DataFrame,
     options: pd.DataFrame,
+    module_identifier: str = "matters",
 ) -> pd.DataFrame:
     header_mapping = custom_field_headers(list(excel_df.columns))
     if not header_mapping:
@@ -55,14 +56,22 @@ def add_custom_field_values(
         values_by_field_and_entity.setdefault(key, []).append(row.value)
 
     entity_column = _entity_column(db_df)
-    if entity_column is None:
-        raise ValueError("Custom fields require the DB query to include a Case ID column")
+    if module_identifier != "addressbook" and entity_column is None:
+        raise ValueError("Custom fields require the DB query to include an entity ID column")
 
     db_df = db_df.copy()
     for field_id in sorted(field_ids):
         field = metadata_by_id.get(field_id)
         column = _field_column_name(field_id, field)
         field_type = str(field.field_type).lower() if field is not None else ""
+        if module_identifier == "addressbook":
+            entity_type = str(field.entity_type).lower() if field is not None else ""
+            entity_column = _addressbook_entity_column(db_df, entity_type)
+            if entity_column is None:
+                raise ValueError(
+                    f"Custom field {field_id} ({entity_type or 'unknown entity type'}) "
+                    "requires a matching entity ID column in the DB query"
+                )
         db_df[column] = [
             _resolved_value(
                 values_by_field_and_entity.get((field_id, _key(entity_id)), []),
@@ -94,10 +103,23 @@ def custom_field_column_aliases(
 
 
 def _entity_column(db_df: pd.DataFrame) -> str | None:
-    for column in ("Case ID", "case id", "matter id", "id"):
+    for column in ("Case ID", "case id", "matter id", "task old id", "id"):
         if column in db_df.columns:
             return column
     return None
+
+
+def _addressbook_entity_column(db_df: pd.DataFrame, entity_type: str) -> str | None:
+    addressbook_columns = {
+        "organisation": "organisation oldid",
+        "organization": "organisation oldid",
+        "location": "location oldid",
+        "site": "location oldid",
+        "person": "person oldid",
+        "contact": "person oldid",
+    }
+    column = addressbook_columns.get(entity_type.replace("_", " ").strip())
+    return column if column in db_df.columns else None
 
 
 def _field_column_name(field_id: int, field: Any) -> str:
