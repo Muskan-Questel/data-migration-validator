@@ -72,6 +72,7 @@ matters:
     clientref:
     - client ref
     - client reference
+    billing key contact: []
     who pays the bill:
     - billing address
     renewal client:
@@ -158,6 +159,7 @@ matters:
       , IFNULL(h206.country, '') 'Opposed Application Country'
       , IFNULL(h206.code, '') 'Opposed Application Number'
       , cos.organisation 'client'
+      , IFNULL(GROUP_CONCAT(DISTINCT bkc_person.name SEPARATOR '; '), '') 'billing key contact'
       , cs.sitename 'who pays the bill'
       , cosr.organisation 'renewal client'
       , csr.sitename 'renewal billing'
@@ -221,10 +223,17 @@ matters:
                        ON cos.orgid = :org_id AND cos.id = m.oid
              LEFT JOIN contacts_organisations cosr
                        ON cosr.orgid = :org_id AND cosr.id = m.oid_renewals
-             LEFT JOIN contacts_sites cs
-                       ON cs.orgid = :org_id AND cs.id = m.sid
-             LEFT JOIN contacts_sites csr
-                       ON csr.orgid = :org_id AND csr.id = m.sid_renewals
+           LEFT JOIN contacts_sites cs
+    ON cs.orgid = :org_id AND cs.id = m.sid
+            LEFT JOIN contacts_sites csr
+    ON csr.orgid = :org_id AND csr.id = m.sid_renewals
+            LEFT JOIN myprompts_contacts_key bkc
+    ON bkc.matterid = m.id
+    AND bkc.type = 'billing'
+      LEFT JOIN contacts bkc_person
+    ON bkc_person.orgid = :org_id
+    AND bkc_person.id = bkc.cid
+                       
              LEFT JOIN myprompts_contacts mc_asso
                        ON mc_asso.orgid = :org_id
                       AND (mc_asso.category = 'associate' OR mc_asso.category = 'associate_other')
