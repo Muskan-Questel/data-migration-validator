@@ -185,7 +185,7 @@ async def validate(
                     "db_df": db_df,
                     "org_id": org_id,
                     "region_id": region_id,
-                    "key_columns": module.key_columns,
+                    "key_columns": comparison.key_columns,
                     "comparison_aliases": comparison_aliases,
                     "history_values": history_values,
                     "custom_metadata": custom_metadata,
@@ -195,7 +195,7 @@ async def validate(
                     "mismatch_records": mismatch_records,
                     "mismatch_options": _mismatch_options(
                         mismatch_records,
-                        module.key_columns,
+                        comparison.key_columns,
                         comparison.highlighted_cells["Mismatched_Records"],
                     ),
                 },
@@ -227,7 +227,7 @@ async def validate(
                 "update_fields": _mismatch_fields(comparison.sheets["Mismatched_Records"], comparison.highlighted_cells["Mismatched_Records"]),
                 "update_options": _mismatch_options(
                     comparison.sheets["Mismatched_Records"],
-                    module.key_columns,
+                    comparison.key_columns,
                     comparison.highlighted_cells["Mismatched_Records"],
                 ),
             },

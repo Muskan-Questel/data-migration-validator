@@ -18,6 +18,7 @@ class ComparisonResult:
     summary: dict[str, Any]
     summary_rows: list[dict[str, Any]]
     highlighted_cells: dict[str, dict[tuple[int, int], str]]
+    key_columns: list[str]
 
 
 def compare_dataframes(
@@ -63,6 +64,11 @@ def compare_dataframes(
 
     missing_db_columns = [column for column in excel_columns if column not in db_columns]
     compare_columns = [column for column in excel_columns if column not in missing_db_columns]
+    duplicate_records, excel_dup_mask, db_dup_mask = _duplicate_records(
+        excel_df,
+        db_df,
+        resolved_key_columns,
+    )
     scientific_warnings, scientific_highlights = _scientific_number_warnings(
         excel_df,
         db_df,
@@ -70,9 +76,6 @@ def compare_dataframes(
         compare_columns,
         excel_df.attrs.get("scientific_number_values", []),
     )
-
-    excel_dup_mask = excel_df.duplicated(subset=resolved_key_columns, keep=False)
-    db_dup_mask = db_df.duplicated(subset=resolved_key_columns, keep=False)
 
     excel_unique = excel_df.loc[~excel_dup_mask].copy()
     db_unique = db_df.loc[~db_dup_mask].copy()
@@ -128,10 +131,12 @@ def compare_dataframes(
             "Mismatched_Records": mismatched_records,
             "Only in Database": extra_in_database,
             "Only in Excel": extra_in_excel,
+            "Duplicate Records": duplicate_records,
             "Scientific_Number_Warnings": scientific_warnings,
         },
         summary=summary,
         summary_rows=summary_rows,
+        key_columns=resolved_key_columns,
         highlighted_cells={
             "Mismatched_Records": highlighted_cells,
             "Scientific_Number_Warnings": scientific_highlights,
@@ -152,6 +157,74 @@ def _resolve_key_columns(
         if column in excel_columns and column in db_columns:
             resolved_key_columns.append(column)
     return resolved_key_columns
+
+
+def _duplicate_records(
+    excel_df: pd.DataFrame,
+    db_df: pd.DataFrame,
+    key_columns: list[str],
+) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    excel_keys = [
+        tuple(_normalize_key_value(row[column]) for column in key_columns)
+        for _, row in excel_df.iterrows()
+    ]
+    db_keys = [
+        tuple(_normalize_key_value(row[column]) for column in key_columns)
+        for _, row in db_df.iterrows()
+    ]
+    excel_counts = Counter(excel_keys)
+    db_counts = Counter(db_keys)
+    excel_dup_mask = pd.Series(
+        [excel_counts[key] > 1 for key in excel_keys], index=excel_df.index
+    )
+    db_dup_mask = pd.Series(
+        [db_counts[key] > 1 for key in db_keys], index=db_df.index
+    )
+
+    rows: list[dict[str, Any]] = []
+    output_columns = [
+        "Source",
+        "Duplicate Group",
+        "Duplicate Count",
+        "Source Row",
+        *key_columns,
+        *[f"Excel: {column}" for column in excel_df.columns if column not in key_columns],
+        *[f"Database: {column}" for column in db_df.columns if column not in key_columns],
+    ]
+    for source, df, keys, counts, mask in (
+        ("Excel", excel_df, excel_keys, excel_counts, excel_dup_mask),
+        ("Database", db_df, db_keys, db_counts, db_dup_mask),
+    ):
+        group_ids: dict[tuple[Any, ...], str] = {}
+        group_number = 0
+        for position, (_, row) in enumerate(df.iterrows()):
+            key = keys[position]
+            if not bool(mask.iloc[position]):
+                continue
+            if key not in group_ids:
+                group_number += 1
+                group_ids[key] = f"{source[:3].upper()}-{group_number:03d}"
+            record: dict[str, Any] = {
+                "Source": source,
+                "Duplicate Group": group_ids[key],
+                "Duplicate Count": counts[key],
+                "Source Row": position + 2,
+                **{column: row[column] for column in key_columns},
+            }
+            prefix = "Excel: " if source == "Excel" else "Database: "
+            record.update(
+                {
+                    f"{prefix}{column}": row[column]
+                    for column in df.columns
+                    if column not in key_columns
+                }
+            )
+            rows.append(record)
+    return (
+        pd.DataFrame(rows, columns=output_columns),
+        excel_dup_mask,
+        db_dup_mask,
+    )
 
 
 def write_report(result: ComparisonResult, output_path: str) -> None:
@@ -399,6 +472,9 @@ def _excel_header_mapping(
     mapped_canonical_columns: dict[str, str] = {}
 
     for excel_column in excel_columns:
+        literal_header = str(excel_column).replace("\u00a0", " ").strip().casefold()
+        if literal_header in {"applicant(s)", "inventor(s)"}:
+            continue
         canonical_column = alias_to_canonical.get(_normalize_header(excel_column))
         if not canonical_column or canonical_column == excel_column:
             continue

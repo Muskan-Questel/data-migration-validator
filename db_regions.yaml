@@ -8,3 +8,6 @@ regions:
   uk:
     name: UK
     env_prefix: UK
+  southeastasia:
+    name: Southeast Asia
+    env_prefix: SOUTHEASTASIA
