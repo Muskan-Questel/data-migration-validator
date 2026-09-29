@@ -648,7 +648,7 @@ def _normalize_key_value(value: Any) -> str:
     normalized = normalized.translate(
         str.maketrans("", "", "\u200b\u200c\u200d\ufeff")
     )
-    return " ".join(normalized.split())
+    return " ".join(normalized.split()).casefold()
 
 
 def _rows_by_key(df: pd.DataFrame, key_columns: list[str]) -> dict[tuple[Any, ...], pd.Series]:

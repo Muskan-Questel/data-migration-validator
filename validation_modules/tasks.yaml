@@ -44,7 +44,7 @@ tasks:
          , IF(t.duedate IS NOT NULL AND t.duedate <> 0, CONVERT(CONVERT(t.duedate, DATE), CHAR), '') 'due date'
          , IF(t.donedate IS NOT NULL AND t.donedate <> 0, CONVERT(CONVERT(t.donedate, DATE), CHAR), '') 'done date'
          , IFNULL(t.task, '') 'task name'
-         , '' AS 'type'
+         , IFNULL(pd_t.description, '') 'type'
          , IFNULL(t.notes, '') 'task notes'
          , IFNULL(pd_i.description, t.importance) 'importance'
          , CASE t.emailreminder
@@ -67,5 +67,9 @@ tasks:
                        ON pd_i.orgid = :org_id
                       AND pd_i.type = 'TASK_IMPORTANCE'
                       AND pd_i.oldid = t.importance
+             LEFT JOIN preferences_dropdown pd_t
+                       ON pd_t.orgid = :org_id
+                      AND pd_t.type = 'TASK_PREDEFINED'
+                      AND pd_t.oldid = t.predefined
     WHERE t.orgid = :org_id
     ORDER BY t.id ASC;
