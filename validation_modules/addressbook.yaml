@@ -89,6 +89,7 @@ addressbook:
          , IFNULL(c.phone2, '') 'person phone2'
          , IFNULL(c.email1, '') 'person email'
          , IFNULL(c.jobtitle, '') 'person job title'
+         , IFNULL(c.cc, '') 'person cc'
     FROM contacts_organisations o
              LEFT JOIN (
                  SELECT oid,
